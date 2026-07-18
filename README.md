@@ -1,4 +1,4 @@
-# EKO Remote v0.3.2
+# EKO Remote v0.3.3
 
 EKO Remote is a standalone, static mission-control website for the EKO robot. Host it on GitHub Pages and connect to EKO over either:
 
@@ -13,12 +13,12 @@ The website contains no robot credentials at build time. Connection addresses an
 | --- | --- |
 | Dashboard | Robot mode, Pi health, minute-cached used/total disk storage, battery, modules, events, and link health |
 | Drive | Touch joystick, WASD/arrows, strafe, rotation, speed limit, manual/assist/stationary modes, acknowledgements, emergency stop |
-| AI & Voice | Stateless request router, provider status, voice/wake-word/search controls |
+| AI & Voice | Request router, bounded temporary CHAT status, five-turn window, rolling-summary telemetry, and Forget history |
 | Vision | Explicit one-frame camera capture with privacy state |
-| Memory | Search, create, and delete SQLite memories |
+| Memory | Search, create, and delete SQLite memories with dynamic 1…N display numbers |
 | Logs | Live events, filtering, pause, and JSON export |
 | Config | Typed controls for every fixed YAML field; raw YAML and expanded secrets are never exposed |
-| Settings | Connection controls, runtime preferences, and every YAML boolean as a switch |
+| Settings | Connection controls and current module state; no duplicate config switches |
 
 Motion remains protected by EKO's Raspberry Pi-side safety gate and 750 ms dead-man watchdog. Closing the page, losing Wi-Fi/BLE, or stopping repeated control messages causes the robot to stop.
 
@@ -50,7 +50,7 @@ python -m unittest discover -s tests -v
 
 The Vite build uses relative assets and hash navigation, so it works at `https://username.github.io/repository/` without hard-coding the repository name.
 
-GitHub Pages is HTTPS. Browsers block an insecure `http://` robot endpoint. EKO v0.3.2 recommends Tailscale Serve, which gives the loopback API a trusted private HTTPS/WSS address without exposing port `8765` publicly. Configure EKO with the exact Pages origin:
+GitHub Pages is HTTPS. Browsers block an insecure `http://` robot endpoint. EKO v0.3.3 recommends Tailscale Serve, which gives the loopback API a trusted private HTTPS/WSS address without exposing port `8765` publicly. Configure EKO with the exact Pages origin:
 
 ```dotenv
 EKO_API_HOST=127.0.0.1
@@ -71,7 +71,7 @@ Enter the printed `https://eko....ts.net` address in EKO Remote without `:8765`.
 
 ## Wi-Fi connection
 
-Start the EKO v0.3.2 API on the Raspberry Pi:
+Start the EKO v0.3.3 API on the Raspberry Pi:
 
 ```bash
 cd /opt/eko

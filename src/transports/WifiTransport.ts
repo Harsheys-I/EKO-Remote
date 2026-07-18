@@ -60,6 +60,8 @@ export class WifiTransport extends TransportBase implements EkoTransport {
       case "memories": return { path: `/memories?q=${encodeURIComponent(String(payload.query ?? ""))}&limit=${encodeURIComponent(String(payload.limit ?? 50))}` };
       case "memory.remember": return { path: "/memory", method: "POST", body: payload };
       case "memory.forget": return { path: `/memory/${encodeURIComponent(String(payload.id))}`, method: "DELETE" };
+      case "chat.history": return { path: "/chat/history" };
+      case "chat.forget": return { path: "/chat/history", method: "DELETE" };
       case "message": return { path: "/message", method: "POST", body: payload };
       case "command": return { path: "/command", method: "POST", body: payload };
       case "drive": return { path: "/drive", method: "POST", body: payload };

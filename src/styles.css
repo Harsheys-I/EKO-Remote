@@ -41,6 +41,18 @@ code, kbd { font-family: "IBM Plex Mono", monospace; }
 
 /* Settings */
 .settings-page { grid-template-columns: minmax(0, 1fr) minmax(310px, .75fr); }.runtime-settings, .connection-settings, .module-settings { padding: 22px; }.module-settings { grid-column: 1 / -1; }.endpoint-value { text-transform: none !important; }.connection-change, .forget-button { width: 100%; height: 39px; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--soft); cursor: pointer; }.forget-button { border-color: #56343a; color: #d69297; }.config-hint { margin: 14px 0 0; padding: 11px; display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); color: var(--muted); font-size: 9px; line-height: 1.55; }.config-hint svg { flex: none; color: var(--blue); }.module-grid { margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }.module-grid article { padding: 14px; display: flex; align-items: center; gap: 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); color: var(--blue); }.module-grid strong, .module-grid span { display: block; }.module-grid strong { color: white; font-size: 10px; }.module-grid span { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.settings-page-clean { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.settings-page-clean .module-settings { grid-column: auto; }
+.settings-page-clean .module-grid { grid-template-columns: 1fr; }
+
+/* Bounded temporary CHAT memory */
+.temp-history-panel > p { margin: 13px 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+.temp-history-stats { margin-top: 12px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.temp-history-stats article { min-width: 0; padding: 10px 6px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); text-align: center; }
+.temp-history-stats strong, .temp-history-stats span { display: block; }
+.temp-history-stats strong { color: var(--blue-2); font: 600 16px "IBM Plex Mono"; }
+.temp-history-stats span { margin-top: 4px; color: var(--muted); font-size: 7px; line-height: 1.3; text-transform: uppercase; }
+.history-forget-button { width: 100%; height: 37px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #654047; border-radius: 7px; background: #25171c; color: #ffadb2; cursor: pointer; }
 .empty-state { min-height: 250px; display: grid; place-content: center; justify-items: center; color: #617a92; text-align: center; }.empty-state strong { margin-top: 10px; color: #8fa6bc; font-size: 11px; }.empty-state p { max-width: 330px; margin: 5px 0 0; color: #607990; font-size: 9px; line-height: 1.5; }
 
 /* Config editor */

@@ -3,7 +3,7 @@
 The deployed Remote is an HTTPS page. A browser will block its JavaScript from fetching EKO at a
 plain LAN address such as `http://192.168.18.26:8765`.
 
-Use EKO v0.3.2's private Tailscale Serve setup:
+Use EKO v0.3.3's private Tailscale Serve setup:
 
 1. Install Tailscale on the Raspberry Pi and the controlling laptop or phone.
 2. Join both devices to the same tailnet.

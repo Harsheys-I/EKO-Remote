@@ -49,6 +49,8 @@ class APIClientTests(unittest.TestCase):
         self.api.request("memories", {"query": "robot project", "limit": 4})
         self.api.request("config.list")
         self.api.request("config.update", {"name": "ai.yaml", "values": {"router_enabled": False}})
+        self.api.request("chat.history")
+        self.api.request("chat.forget")
         self.assertEqual(Handler.calls[0], {"method": "POST", "path": "/message", "body": {"text": "hello"}, "authorization": "Bearer secret"})
         self.assertEqual(Handler.calls[1]["method"], "DELETE")
         self.assertEqual(Handler.calls[1]["path"], "/memory/7")
@@ -56,6 +58,10 @@ class APIClientTests(unittest.TestCase):
         self.assertEqual(Handler.calls[3]["path"], "/config")
         self.assertEqual(Handler.calls[4]["path"], "/config/ai.yaml")
         self.assertEqual(Handler.calls[4]["body"], {"values": {"router_enabled": False}})
+        self.assertEqual(Handler.calls[5]["path"], "/chat/history")
+        self.assertEqual(Handler.calls[5]["method"], "GET")
+        self.assertEqual(Handler.calls[6]["path"], "/chat/history")
+        self.assertEqual(Handler.calls[6]["method"], "DELETE")
 
     def test_unknown_operation_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unsupported BLE operation"):

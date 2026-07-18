@@ -44,6 +44,18 @@ export interface AIStatus {
   model: string;
   context_messages?: number;
   context_enabled?: boolean;
+  temporary_chat?: TemporaryChatStatus;
+}
+
+export interface TemporaryChatStatus {
+  enabled: boolean;
+  exact_limit: number;
+  exact_exchanges: number;
+  summary_words: number;
+  summary_present: boolean;
+  total_exchanges: number;
+  persistent: boolean;
+  cleared?: boolean;
 }
 
 export interface StatusPayload {
@@ -72,6 +84,7 @@ export interface EkoEvent {
 
 export interface MemoryRecord {
   id: number;
+  display_index: number;
   kind: string;
   content: string;
   tags: string[];
@@ -124,6 +137,7 @@ export interface ConfigSavePayload {
 
 export type EkoOperation =
   | "health" | "events" | "memories" | "memory.remember" | "memory.forget"
+  | "chat.history" | "chat.forget"
   | "message" | "command" | "drive" | "control" | "settings.get"
   | "settings.update" | "ai" | "vision.snapshot"
   | "config.list" | "config.update";

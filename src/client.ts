@@ -1,4 +1,4 @@
-import type { ConfigListPayload, ConfigSavePayload, ControlStatus, DriveVector, EkoEvent, MemoryRecord, RuntimeSettings, ServiceResult, StatusPayload, VisionSnapshot } from "./types";
+import type { ConfigListPayload, ConfigSavePayload, ControlStatus, DriveVector, EkoEvent, MemoryRecord, RuntimeSettings, ServiceResult, StatusPayload, TemporaryChatStatus, VisionSnapshot } from "./types";
 
 export class EkoClient {
   constructor(readonly transport: import("./transports/Transport").EkoTransport) {}
@@ -7,6 +7,8 @@ export class EkoClient {
   memories(query = "", limit = 50) { return this.transport.request<{ memories: MemoryRecord[] }>("memories", { query, limit }); }
   remember(content: string, tags: string[] = []) { return this.transport.request<ServiceResult>("memory.remember", { content, tags }); }
   forget(id: number) { return this.transport.request<ServiceResult>("memory.forget", { id }); }
+  chatHistory() { return this.transport.request<TemporaryChatStatus>("chat.history"); }
+  forgetChatHistory() { return this.transport.request<TemporaryChatStatus>("chat.forget"); }
   message(text: string) { return this.transport.request<ServiceResult>("message", { text }); }
   command(command: string) { return this.transport.request<ServiceResult>("command", { command }); }
   drive(vector: DriveVector, waitForReply = false) { return waitForReply ? this.transport.request<ServiceResult>("drive", vector as unknown as Record<string, unknown>) : this.transport.send("drive", vector as unknown as Record<string, unknown>); }

@@ -24,7 +24,7 @@ The browser is an operator client. The EKO runtime is authoritative for state, h
 | `src/client.ts` | Typed EKO operations independent of the active transport |
 | `src/hooks/useEkoConnection.ts` | React connection lifecycle, status, events, polling, saved profile |
 | `src/components/` | Shared shell, connection dialog, panels, metrics, and toggles |
-| `src/pages/` | Dashboard, drive, AI, vision, memory, logs, YAML config, and settings views |
+| `src/pages/` | Dashboard, drive, AI/temp-history, vision, dynamic-index memory, logs, YAML config, and settings views |
 | `bridge/eko_ble_bridge.py` | BLE GATT peripheral and loopback API adapter |
 | `bridge/api_client.py` | Dependency-free mapping from semantic operations to EKO HTTP routes |
 | `bridge/protocol.py` | Python implementation of the BLE framing contract |
@@ -72,8 +72,18 @@ Wi-Fi and BLE use separate optional tokens. They are never Vite environment vari
 `config.list` returns fixed typed fields, constraints, and per-field restart metadata from EKO's
 authenticated API. It never returns raw YAML or expanded `.env` values. `config.update` accepts
 only value changes for existing dotted paths. The Config page renders type-appropriate controls,
-and Settings renders every boolean as a switch. The operator receives a restart prompt only when
-the server marks a changed field startup-managed.
+including every boolean switch. Settings intentionally does not duplicate them. The operator
+receives a restart prompt only when the server marks a changed field startup-managed.
+
+## Temporary CHAT context
+
+The AI page reads `chat.history` metadata and shows exact-exchange count, summary word count, and
+the total CHAT exchanges handled during this robot process. `chat.forget` clears that user's
+RAM-only context and resets the browser transcript while leaving durable SQLite MEMORY untouched.
+Neither endpoint returns temporary transcript text. Both Wi-Fi and BLE map to the same EKO API.
+
+Memory records keep stable backend IDs for delete requests, but the API also returns a dynamic
+`display_index`. The UI reloads after deletion so visible numbering always becomes 1…N.
 
 Dashboard storage values come from `state.health`. EKO samples filesystem used/total capacity no
 more than once per minute; faster Wi-Fi/BLE telemetry frames reuse that sample.

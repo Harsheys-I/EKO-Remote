@@ -44,6 +44,10 @@ class EkoAPI:
             return "GET", f"/memories?q={quote(str(payload.get('query', '')))}&limit={int(payload.get('limit', 50))}", None
         if operation == "memory.forget":
             return "DELETE", f"/memory/{int(payload['id'])}", None
+        if operation == "chat.history":
+            return "GET", "/chat/history", None
+        if operation == "chat.forget":
+            return "DELETE", "/chat/history", None
         if operation in {"memory.remember", "message", "command", "drive", "settings.update"}:
             path = {
                 "memory.remember": "/memory",

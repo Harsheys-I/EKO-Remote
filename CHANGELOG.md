@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3
+
+- Added temporary CHAT telemetry and a Forget history button that clears only RAM context.
+- Added Wi-Fi and BLE mappings for temporary-history status and reset operations.
+- Changed Memory to dynamic 1…N display indexes and reloads after deletion.
+- Removed redundant YAML/runtime toggle switchboards from Settings; typed controls remain in Config.
+- Updated AI copy and status from “stateless” to the bounded five-exchange plus summary model.
+
 ## 0.3.2
 
 - Replaced the raw YAML editor with generated controls for EKO's fixed typed configuration schema.
