@@ -1,9 +1,9 @@
-import { Bot, BrainCircuit, ChevronRight, Eraser, History, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Bot, BrainCircuit, Camera, ChevronRight, Eraser, Globe2, History, Music2, RefreshCw, Send, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { EkoClient } from "../client";
-import { Panel, SectionHeading } from "../components/Common";
-import type { EkoEvent, LinkStats, StatusPayload, TemporaryChatStatus } from "../types";
+import { Panel, SectionHeading, Toggle } from "../components/Common";
+import type { CapabilityQuotaStatus, EkoEvent, LinkStats, RuntimeSettings, StatusPayload, TemporaryChatStatus } from "../types";
 
 type ChatItem = { role: "user" | "eko"; text: string; at: Date };
 
@@ -20,16 +20,18 @@ const suggestions = [
   "Calculate 2 ** 40",
 ];
 
-export function AIPage({ client, status, events, stats }: {
+export function AIPage({ client, status, events, stats, onSettings }: {
   client: EkoClient | null;
   status: StatusPayload | null;
   events: EkoEvent[];
   stats: LinkStats;
+  onSettings: (settings: RuntimeSettings) => void;
 }) {
   const [chat, setChat] = useState<ChatItem[]>([welcome()]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [updatingGate, setUpdatingGate] = useState<string | null>(null);
   const [history, setHistory] = useState<TemporaryChatStatus | null>(status?.ai.temporary_chat ?? null);
   const latestRoute = events.find((event) => event.name === "conversation.categorized");
 
@@ -88,6 +90,27 @@ export function AIPage({ client, status, events, stats }: {
 
   const exact = history?.exact_exchanges ?? 0;
   const limit = history?.exact_limit ?? 5;
+  const cameraQuota = status?.capability_status?.camera;
+  const songQuota = status?.capability_status?.song;
+
+  const updateGate = async (name: string, changes: Partial<RuntimeSettings>) => {
+    if (!client || updatingGate) return;
+    setUpdatingGate(name);
+    setError(null);
+    try {
+      onSettings(await client.updateSettings(changes));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `Could not update ${name}`);
+    } finally {
+      setUpdatingGate(null);
+    }
+  };
+
+  const quotaLabel = (quota: CapabilityQuotaStatus | undefined) => {
+    if (!quota?.configured) return "Enable its hardware and dependencies first";
+    if (quota.retry_after_seconds > 0) return `Cooldown ${Math.ceil(quota.retry_after_seconds)}s · ${quota.remaining}/${quota.limit} available`;
+    return `Ready · ${quota.remaining}/${quota.limit} requests available`;
+  };
 
   return <div className="page-grid ai-page">
     <Panel className="chat-panel">
@@ -101,6 +124,12 @@ export function AIPage({ client, status, events, stats }: {
       <Panel>
         <SectionHeading kicker="ACTIVE BRAIN" title="Model status" action={<BrainCircuit size={19} />} />
         <dl className="detail-list"><div><dt>Provider</dt><dd>{status?.ai.provider ?? "—"}</dd></div><div><dt>Model</dt><dd>{status?.ai.model ?? "—"}</dd></div><div><dt>CHAT context</dt><dd>{status ? `${exact}/${limit} exact` : "—"}</dd></div><div><dt>Last route</dt><dd>{String(latestRoute?.payload.category ?? "Waiting")}</dd></div></dl>
+      </Panel>
+      <Panel className="capability-gates-panel">
+        <SectionHeading kicker="LIVE CAPABILITY GATES" title="AI tools" action={<SlidersHorizontal size={19} />} />
+        <div className="capability-toggle-row"><Globe2 size={17} /><Toggle checked={Boolean(status?.settings.web_search_enabled)} label="Web search" description="Permit Tavily retrieval" disabled={!client || updatingGate !== null} onChange={(value) => void updateGate("web search", { web_search_enabled: value })} /></div>
+        <div className="capability-toggle-row"><Camera size={17} /><Toggle checked={Boolean(status?.settings.camera_on_demand)} label="Camera questions" description={quotaLabel(cameraQuota)} disabled={!client || !cameraQuota?.configured || updatingGate !== null} onChange={(value) => void updateGate("camera AI", { camera_on_demand: value })} /></div>
+        <div className="capability-toggle-row"><Music2 size={17} /><Toggle checked={Boolean(status?.settings.song_enabled)} label="Song listening" description={quotaLabel(songQuota)} disabled={!client || !songQuota?.configured || updatingGate !== null} onChange={(value) => void updateGate("song recognition", { song_enabled: value })} /></div>
       </Panel>
       <Panel className="temp-history-panel">
         <SectionHeading kicker="RAM-ONLY CONTEXT" title="Temporary chat" action={<History size={19} />} />

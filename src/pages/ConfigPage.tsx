@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Copy, FileSliders, RefreshCw, RotateCcw, S
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EkoClient } from "../client";
 import { EmptyState, Panel, SectionHeading, Toggle } from "../components/Common";
+import { WifiProfilesEditor } from "../components/WifiProfilesEditor";
 import type { ConfigField, ConfigFile } from "../types";
 
 interface RestartNotice {
@@ -113,6 +114,8 @@ export function ConfigPage({ client }: { client: EkoClient | null }) {
       if (result.file.restart_required) {
         setRestartNotice({ fileName: result.file.name, command: result.restart_command || "sudo systemctl restart eko", backupName: result.file.backup_name });
         setSuccess(`${result.file.title} saved. Restart EKO to apply the startup-bound fields.`);
+      } else if (result.file.name === "wifi.yaml") {
+        setSuccess(`${result.file.title} saved for the next boot-time recovery run.`);
       } else {
         setSuccess(`${result.file.title} saved and applied live.`);
       }
@@ -138,7 +141,7 @@ export function ConfigPage({ client }: { client: EkoClient | null }) {
     <Panel className="config-browser">
       <SectionHeading kicker="CONFIGURATION" title="System areas" action={<button className="icon-button" onClick={() => void load()} disabled={loading || dirty} title={dirty ? "Save or discard changes before reloading" : "Reload configuration"}><RefreshCw className={loading ? "spin" : ""} size={17} /></button>} />
       <div className="config-file-list">{files.map((file) => <button key={file.name} className={file.name === selectedName ? "selected" : ""} onClick={() => choose(file)}><FileSliders size={17} /><span><strong>{file.title}</strong><small>{file.fields.length} fixed fields</small></span>{file.restart_required ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}</button>)}</div>
-      <p className="config-security-note">Field names and types are locked by EKO. Machine credentials remain in <code>.env</code> and are never returned to this website.</p>
+      <p className="config-security-note">Field names and types are locked by EKO. API keys remain in <code>.env</code>; saved Wi-Fi passwords are write-only and are never returned to this website.</p>
     </Panel>
 
     <Panel className="config-editor">
@@ -147,6 +150,7 @@ export function ConfigPage({ client }: { client: EkoClient | null }) {
       {error && <p className="inline-error">{error}</p>}
       {success && <p className="inline-success"><CheckCircle2 size={15} />{success}</p>}
       <div className="config-form">{grouped.map(([group, fields]) => <section className="config-group" key={group}><header><div><strong>{group === "General" ? "General" : group.split(".").map((item) => item.replaceAll("_", " ")).join(" / ")}</strong><span>{fields.length} fields</span></div></header><div className="config-field-grid">{fields.map((field) => <div className={`config-field ${field.type === "boolean" ? "boolean" : ""}`} key={field.path}><FieldControl field={field} value={draft[field.path]} disabled={saving} onChange={(value) => setDraft((current) => ({ ...current, [field.path]: value }))} />{field.restart_required && <span className="field-restart"><AlertTriangle size={12} />Applies after restart</span>}</div>)}</div></section>)}</div>
+      {selected?.name === "wifi.yaml" && <WifiProfilesEditor client={client} />}
       <footer className="config-editor-footer"><div>{selected && <><span>{selected.fields.length} fixed fields</span>{dirty && <strong>{Object.keys(changedValues).length} unsaved</strong>}</>}</div><button className="secondary-button" disabled={!dirty || saving} onClick={() => { setDraft({ ...baseline }); setError(null); }}><RotateCcw size={16} />Discard</button><button className="primary-button" disabled={!dirty || saving} onClick={() => void save()}><Save size={16} />{saving ? "Validating..." : "Save changes"}</button></footer>
     </Panel>
 

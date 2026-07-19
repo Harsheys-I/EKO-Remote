@@ -61,7 +61,7 @@ or:
 
 ## Operations
 
-`health`, `events`, `memories`, `memory.remember`, `memory.forget`, `chat.history`, `chat.forget`, `message`, `command`, `drive`, `control`, `settings.get`, `settings.update`, `ai`, `vision.snapshot`, `config.list`, and `config.update` map directly to EKO's v0.3.3 control API.
+`health`, `events`, `memories`, `memory.remember`, `memory.forget`, `chat.history`, `chat.forget`, `message`, `command`, `drive`, `control`, `settings.get`, `settings.update`, `ai`, `vision.snapshot`, `config.list`, `config.update`, `wifi.profiles`, and `wifi.profiles.update` map directly to EKO's v0.3.4 control API.
 
 ## Telemetry
 

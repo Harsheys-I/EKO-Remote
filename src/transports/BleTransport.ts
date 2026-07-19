@@ -64,7 +64,8 @@ export class BleTransport extends TransportBase implements EkoTransport {
   async request<T>(operation: EkoOperation, payload: Record<string, unknown> = {}): Promise<T> {
     const messageId = this.allocateMessageId();
     const promise = new Promise<T>((resolve, reject) => {
-      const timer = window.setTimeout(() => { this.pending.delete(messageId); reject(new Error(`BLE request timed out: ${operation}`)); }, operation === "vision.snapshot" ? 90_000 : 12_000);
+      const longRequest = operation === "vision.snapshot" || operation === "message";
+      const timer = window.setTimeout(() => { this.pending.delete(messageId); reject(new Error(`BLE request timed out: ${operation}`)); }, longRequest ? 90_000 : 12_000);
       this.pending.set(messageId, { resolve: (value) => resolve(value as T), reject, timer });
     });
     try { await this.writeFrames(encodeFrames(BleFrameKind.Request, messageId, { operation, payload, auth: this.token })); }

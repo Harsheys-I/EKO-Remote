@@ -33,6 +33,7 @@ export interface RuntimeSettings {
   memory_auto_inject: boolean;
   web_search_enabled: boolean;
   camera_on_demand: boolean;
+  song_enabled: boolean;
   hardware_enabled: boolean;
   vision_enabled: boolean;
   audio_enabled: boolean;
@@ -63,8 +64,22 @@ export interface StatusPayload {
   robot: { name: string; version: string };
   state: RobotState;
   capabilities: Record<string, boolean>;
+  capability_status?: {
+    camera: CapabilityQuotaStatus;
+    song: CapabilityQuotaStatus;
+  };
   settings: RuntimeSettings;
   ai: AIStatus;
+}
+
+export interface CapabilityQuotaStatus {
+  configured: boolean;
+  enabled: boolean;
+  available: boolean;
+  limit: number;
+  remaining: number;
+  window_seconds: number;
+  retry_after_seconds: number;
 }
 
 export interface ServiceResult<T = unknown> {
@@ -135,12 +150,32 @@ export interface ConfigSavePayload {
   restart_command: string | null;
 }
 
+export interface WifiRecoveryProfile {
+  id: string;
+  ssid: string;
+  priority: number;
+  password_set: boolean;
+}
+
+export interface WifiRecoveryProfileDraft extends WifiRecoveryProfile {
+  password?: string;
+  clear_password?: boolean;
+}
+
+export interface WifiProfilesPayload {
+  ok?: boolean;
+  profiles: WifiRecoveryProfile[];
+  max_profiles: number;
+  applies?: string;
+}
+
 export type EkoOperation =
   | "health" | "events" | "memories" | "memory.remember" | "memory.forget"
   | "chat.history" | "chat.forget"
   | "message" | "command" | "drive" | "control" | "settings.get"
   | "settings.update" | "ai" | "vision.snapshot"
-  | "config.list" | "config.update";
+  | "config.list" | "config.update"
+  | "wifi.profiles" | "wifi.profiles.update";
 
 export interface ConnectionProfile {
   kind: TransportKind;

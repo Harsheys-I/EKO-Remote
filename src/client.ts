@@ -1,4 +1,4 @@
-import type { ConfigListPayload, ConfigSavePayload, ControlStatus, DriveVector, EkoEvent, MemoryRecord, RuntimeSettings, ServiceResult, StatusPayload, TemporaryChatStatus, VisionSnapshot } from "./types";
+import type { ConfigListPayload, ConfigSavePayload, ControlStatus, DriveVector, EkoEvent, MemoryRecord, RuntimeSettings, ServiceResult, StatusPayload, TemporaryChatStatus, VisionSnapshot, WifiProfilesPayload, WifiRecoveryProfileDraft } from "./types";
 
 export class EkoClient {
   constructor(readonly transport: import("./transports/Transport").EkoTransport) {}
@@ -19,5 +19,7 @@ export class EkoClient {
   snapshot() { return this.transport.request<VisionSnapshot>("vision.snapshot"); }
   configFiles() { return this.transport.request<ConfigListPayload>("config.list"); }
   updateConfig(name: string, values: Record<string, unknown>) { return this.transport.request<ConfigSavePayload>("config.update", { name, values }); }
+  wifiProfiles() { return this.transport.request<WifiProfilesPayload>("wifi.profiles"); }
+  updateWifiProfiles(profiles: WifiRecoveryProfileDraft[]) { return this.transport.request<WifiProfilesPayload>("wifi.profiles.update", { profiles }); }
   stop() { return this.transport.emergencyStop(); }
 }

@@ -40,4 +40,17 @@ describe("EkoClient temporary CHAT operations", () => {
     await new EkoClient(link.value).forgetChatHistory();
     expect(link.request).toHaveBeenCalledWith("chat.forget");
   });
+
+  it("loads structured fallback Wi-Fi profiles", async () => {
+    const link = transport();
+    await new EkoClient(link.value).wifiProfiles();
+    expect(link.request).toHaveBeenCalledWith("wifi.profiles");
+  });
+
+  it("updates fallback profiles without inventing a raw config operation", async () => {
+    const link = transport();
+    const profiles = [{ id: "a".repeat(24), ssid: "EKO backup", priority: 10, password_set: false, password: "correct-horse" }];
+    await new EkoClient(link.value).updateWifiProfiles(profiles);
+    expect(link.request).toHaveBeenCalledWith("wifi.profiles.update", { profiles });
+  });
 });

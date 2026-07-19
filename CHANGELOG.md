@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.4
+
+- Added live Web search, Camera questions, and Song listening gates to the AI sidebar.
+- Added robot-reported request quotas, remaining capacity, and cooldown status for camera and song operations.
+- Added a structured fallback-network editor with SSID, write-only password replacement/clear, priority, add, and remove controls.
+- Added Wi-Fi and BLE operation mappings for fallback profile reads and updates.
+- Extended AI request timeouts for camera capture, song recording, transcription, search, and personality passes.
+- Updated versioning, architecture, security guidance, and a fresh-clone GitHub publishing workflow.
+
 ## 0.3.3
 
 - Added temporary CHAT telemetry and a Forget history button that clears only RAM context.

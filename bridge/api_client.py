@@ -23,7 +23,8 @@ class EkoAPI:
             headers["Authorization"] = f"Bearer {self.token}"
         request = Request(self.base_url + path, data=data, headers=headers, method=method)
         try:
-            with urlopen(request, timeout=95 if operation == "vision.snapshot" else 10) as response:
+            timeout = 95 if operation in {"vision.snapshot", "message"} else 10
+            with urlopen(request, timeout=timeout) as response:
                 return json.load(response)
         except HTTPError as exc:
             try:
@@ -66,4 +67,8 @@ class EkoAPI:
             return "GET", "/config", None
         if operation == "config.update":
             return "POST", f"/config/{quote(str(payload['name']))}", {"values": payload.get("values", {})}
+        if operation == "wifi.profiles":
+            return "GET", "/wifi/profiles", None
+        if operation == "wifi.profiles.update":
+            return "POST", "/wifi/profiles", {"profiles": payload.get("profiles", [])}
         raise ValueError(f"Unsupported BLE operation: {operation}")

@@ -1,4 +1,4 @@
-# EKO Remote architecture
+# EKO Remote v0.3.4 architecture
 
 ## Deployable parts
 
@@ -24,7 +24,8 @@ The browser is an operator client. The EKO runtime is authoritative for state, h
 | `src/client.ts` | Typed EKO operations independent of the active transport |
 | `src/hooks/useEkoConnection.ts` | React connection lifecycle, status, events, polling, saved profile |
 | `src/components/` | Shared shell, connection dialog, panels, metrics, and toggles |
-| `src/pages/` | Dashboard, drive, AI/temp-history, vision, dynamic-index memory, logs, YAML config, and settings views |
+| `src/pages/` | Dashboard, drive, AI/capability gates/temp-history, vision, memory, logs, typed config, and settings views |
+| `src/components/WifiProfilesEditor.tsx` | Structured SSID, write-only password, and priority editor |
 | `bridge/eko_ble_bridge.py` | BLE GATT peripheral and loopback API adapter |
 | `bridge/api_client.py` | Dependency-free mapping from semantic operations to EKO HTTP routes |
 | `bridge/protocol.py` | Python implementation of the BLE framing contract |
@@ -75,6 +76,12 @@ only value changes for existing dotted paths. The Config page renders type-appro
 including every boolean switch. Settings intentionally does not duplicate them. The operator
 receives a restart prompt only when the server marks a changed field startup-managed.
 
+`wifi.profiles` is deliberately separate from `config.list`: profile rows are not arbitrary YAML.
+The editor can add, reorder by numeric priority, remove, replace, or explicitly clear passwords.
+A blank password field preserves a saved password; responses expose only `password_set`. The UI
+therefore never holds a previously saved Wi-Fi password and labels changes for the next boot or
+recovery run rather than claiming they applied to the current connection.
+
 ## Temporary CHAT context
 
 The AI page reads `chat.history` metadata and shows exact-exchange count, summary word count, and
@@ -87,6 +94,32 @@ Memory records keep stable backend IDs for delete requests, but the API also ret
 
 Dashboard storage values come from `state.health`. EKO samples filesystem used/total capacity no
 more than once per minute; faster Wi-Fi/BLE telemetry frames reuse that sample.
+
+## Expensive capability gates
+
+The AI sidebar has three live gates backed by the ordinary settings route:
+
+| Gate | Robot setting | UI status |
+| --- | --- | --- |
+| Web search | `web_search_enabled` | Enabled/disabled |
+| Camera questions | `camera_on_demand` | Configured state, remaining quota, and cooldown |
+| Song listening | `song_enabled` | Dependency state, remaining quota, and cooldown |
+
+The browser gate is a convenience and privacy control. The robot service checks the same setting
+again before capture, then enforces its own in-process sliding quota. Disabling or closing the page
+cannot bypass robot-side validation. Camera and song requests use the longer message timeout on
+both Wi-Fi and BLE because physical capture plus two cloud calls can exceed a normal JSON request.
+
+## Operation mapping
+
+| Semantic operation | Wi-Fi route | BLE bridge route |
+| --- | --- | --- |
+| `message` | `POST /message` | `POST /message` |
+| `settings.update` | `POST /settings` | `POST /settings` |
+| `wifi.profiles` | `GET /wifi/profiles` | `GET /wifi/profiles` |
+| `wifi.profiles.update` | `POST /wifi/profiles` | `POST /wifi/profiles` |
+| `vision.snapshot` | `POST /vision/snapshot` | `POST /vision/snapshot` |
+| `chat.forget` | `DELETE /chat/history` | `DELETE /chat/history` |
 
 ## Bandwidth
 

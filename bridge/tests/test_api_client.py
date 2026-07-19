@@ -51,6 +51,11 @@ class APIClientTests(unittest.TestCase):
         self.api.request("config.update", {"name": "ai.yaml", "values": {"router_enabled": False}})
         self.api.request("chat.history")
         self.api.request("chat.forget")
+        self.api.request("wifi.profiles")
+        self.api.request(
+            "wifi.profiles.update",
+            {"profiles": [{"id": "a" * 24, "ssid": "EKO backup", "priority": 10}]},
+        )
         self.assertEqual(Handler.calls[0], {"method": "POST", "path": "/message", "body": {"text": "hello"}, "authorization": "Bearer secret"})
         self.assertEqual(Handler.calls[1]["method"], "DELETE")
         self.assertEqual(Handler.calls[1]["path"], "/memory/7")
@@ -62,6 +67,14 @@ class APIClientTests(unittest.TestCase):
         self.assertEqual(Handler.calls[5]["method"], "GET")
         self.assertEqual(Handler.calls[6]["path"], "/chat/history")
         self.assertEqual(Handler.calls[6]["method"], "DELETE")
+        self.assertEqual(Handler.calls[7]["path"], "/wifi/profiles")
+        self.assertEqual(Handler.calls[7]["method"], "GET")
+        self.assertEqual(Handler.calls[8]["path"], "/wifi/profiles")
+        self.assertEqual(Handler.calls[8]["method"], "POST")
+        self.assertEqual(
+            Handler.calls[8]["body"],
+            {"profiles": [{"id": "a" * 24, "ssid": "EKO backup", "priority": 10}]},
+        )
 
     def test_unknown_operation_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unsupported BLE operation"):

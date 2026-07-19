@@ -72,6 +72,8 @@ export class WifiTransport extends TransportBase implements EkoTransport {
       case "vision.snapshot": return { path: "/vision/snapshot", method: "POST", body: {} };
       case "config.list": return { path: "/config" };
       case "config.update": return { path: `/config/${encodeURIComponent(String(payload.name))}`, method: "POST", body: { values: payload.values } };
+      case "wifi.profiles": return { path: "/wifi/profiles" };
+      case "wifi.profiles.update": return { path: "/wifi/profiles", method: "POST", body: { profiles: payload.profiles } };
     }
   }
 
