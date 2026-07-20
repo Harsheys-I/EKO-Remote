@@ -34,6 +34,8 @@ export interface RuntimeSettings {
   web_search_enabled: boolean;
   camera_on_demand: boolean;
   song_enabled: boolean;
+  mock_mode: boolean;
+  mock_connected: boolean;
   hardware_enabled: boolean;
   vision_enabled: boolean;
   audio_enabled: boolean;
@@ -67,6 +69,9 @@ export interface StatusPayload {
   capability_status?: {
     camera: CapabilityQuotaStatus;
     song: CapabilityQuotaStatus;
+    mock?: MockHardwareStatus;
+    sensors?: SensorHubStatus;
+    terminal?: TerminalStatus;
   };
   settings: RuntimeSettings;
   ai: AIStatus;
@@ -80,6 +85,42 @@ export interface CapabilityQuotaStatus {
   remaining: number;
   window_seconds: number;
   retry_after_seconds: number;
+}
+
+export interface MockHardwareStatus {
+  enabled: boolean;
+  connected: boolean;
+  session_id: string | null;
+  connected_at: number | null;
+  last_seen: number | null;
+  sample_rate: number;
+  voice_running: boolean;
+  voice_starting?: boolean;
+  voice_error: string | null;
+  device: Record<string, string | boolean | number>;
+}
+
+export interface SensorHubStatus {
+  enabled: boolean;
+  connected: boolean;
+  verified: boolean;
+  port_open: boolean;
+  port: string | null;
+  moving_scan: boolean;
+  distance_threshold_cm: number;
+  last_seen: number | null;
+  last_payload: Record<string, number> | null;
+  last_error: string | null;
+  emergency_stops: number;
+  thread_alive: boolean;
+}
+
+export interface TerminalStatus {
+  enabled: boolean;
+  active_sessions: number;
+  max_sessions: number;
+  idle_timeout_seconds: number;
+  requires_tailscale_identity: boolean;
 }
 
 export interface ServiceResult<T = unknown> {
@@ -150,6 +191,20 @@ export interface ConfigSavePayload {
   restart_command: string | null;
 }
 
+export interface ConfigBatchPayload {
+  ok: boolean;
+  valid: boolean;
+  dry_run: boolean;
+  changed_paths: string[];
+  restart_required: boolean;
+  restart_files: string[];
+  warnings: string[];
+  backup_names: Record<string, string>;
+  applied_live: boolean;
+  files?: ConfigFile[];
+  restart_command: string | null;
+}
+
 export interface WifiRecoveryProfile {
   id: string;
   ssid: string;
@@ -174,8 +229,9 @@ export type EkoOperation =
   | "chat.history" | "chat.forget"
   | "message" | "command" | "drive" | "control" | "settings.get"
   | "settings.update" | "ai" | "vision.snapshot"
-  | "config.list" | "config.update"
-  | "wifi.profiles" | "wifi.profiles.update";
+  | "config.list" | "config.update" | "config.batch"
+  | "wifi.profiles" | "wifi.profiles.update"
+  | "mock.status" | "mock.sensors" | "terminal.status";
 
 export interface ConnectionProfile {
   kind: TransportKind;
@@ -194,6 +250,14 @@ export interface LinkStats {
   latencyMs: number | null;
   lastUpdated: Date | null;
   error: string | null;
+}
+
+export interface MockMotion {
+  vx: number;
+  vy: number;
+  wz: number;
+  wheels: Record<string, number>;
+  receivedAt: number;
 }
 
 export const offlineState: RobotState = {

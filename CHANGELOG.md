@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0
+
+- Added a Dashboard Mock Mode master switch that explicitly requests browser microphone/camera access and opens a dedicated authenticated WSS hardware channel.
+- Added live browser PCM, requested JPEG capture, Pi-generated speaker playback, device readiness, disconnect safety, and local camera preview while all processing stays on the Pi.
+- Added an explicit Gamepad activation flow, simultaneous holonomic translation/rotation, Pi-accepted wheel telemetry, a bounded top-down robot twin, and mock obstacle injection.
+- Replaced per-file saves with persistent cross-file staging and one validate-then-atomic-apply action, including warnings, backups, rollback errors, and one restart dialog.
+- Added a disabled-by-default xterm.js PTY page over API-token, exact-Origin, and Tailscale-identity protected WSS; it is intentionally a fresh service-user shell rather than an HDMI mirror.
+- Code-split the xterm.js terminal so the normal mission-control bundle stays below the build warning threshold and terminal code loads only when opened.
+- Added Nano sensor readiness types and Wi-Fi/BLE semantic mappings for configuration batches, mock status/sensors, and terminal status.
+- Verified 9 Vitest checks, 4 Python bridge checks, and a strict TypeScript/Vite production build.
+
 ## 0.3.4
 
 - Added live Web search, Camera questions, and Song listening gates to the AI sidebar.

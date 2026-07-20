@@ -1,9 +1,9 @@
-# EKO Remote v0.3.4
+# EKO Remote v0.4.0
 
 EKO Remote is a standalone, static mission-control website for the EKO robot. Host it on GitHub Pages and connect to EKO over either:
 
 - **Wi-Fi:** HTTPS requests plus WSS telemetry. This is the fastest link and the recommended path for camera images.
-- **Bluetooth Low Energy:** direct browser-to-Raspberry Pi GATT connection through the included companion bridge. Every API operation is supported with chunked messages; large camera frames are slower.
+- **Bluetooth Low Energy:** direct browser-to-Raspberry Pi GATT connection through the included companion bridge. Core semantic API operations are chunked; browser mock media and PTY sessions require Wi-Fi/WSS.
 
 The website contains no robot credentials at build time. Connection addresses and optional tokens are entered in the browser.
 
@@ -11,16 +11,26 @@ The website contains no robot credentials at build time. Connection addresses an
 
 | Area | Capabilities |
 | --- | --- |
-| Dashboard | Robot mode, Pi health, minute-cached used/total disk storage, battery, modules, events, and link health |
-| Drive | Touch joystick, WASD/arrows, strafe, rotation, speed limit, manual/assist/stationary modes, acknowledgements, emergency stop |
+| Dashboard | Robot/Pi telemetry plus the browser Mock Mode master switch and device permissions |
+| Drive | Touch/keyboard, explicit Gamepad API, combined translation/rotation, top-down Mecanum twin, mock sensor hazard, emergency stop |
 | AI & Voice | Request router, temporary CHAT status, Forget history, Web/Camera/Song live gates, quotas, and cooldowns |
 | Vision | Explicit one-frame camera capture with privacy state |
 | Memory | Search, create, and delete SQLite memories with dynamic 1…N display numbers |
 | Logs | Live events, filtering, pause, and JSON export |
-| Config | Typed fixed YAML controls plus structured, write-only fallback Wi-Fi profiles |
+| Config | Cross-file staged typed controls, server dry-run, atomic apply/rollback, and structured write-only fallback Wi-Fi profiles |
+| Terminal | Disabled-by-default service-user PTY over authenticated Tailscale WSS |
 | Settings | Connection controls and current module state; no duplicate config switches |
 
 Motion remains protected by EKO's Raspberry Pi-side safety gate and 750 ms dead-man watchdog. Closing the page, losing Wi-Fi/BLE, or stopping repeated control messages causes the robot to stop.
+
+## Mock Mode
+
+Use the Dashboard switch from a current HTTPS browser and grant microphone/camera permission. The
+browser supplies only physical I/O: audio is streamed as 16 kHz PCM to Pi-side openWakeWord/STT,
+camera JPEGs are returned only for Pi-issued capture requests, Pi-side TTS plays on the browser,
+and accepted Pi motion drives the top-down twin. Groq, memory, routing, quotas, kinematics,
+watchdogs, and Nano safety remain real. The Drive page can inject a Nano-shaped obstacle packet to
+exercise the genuine emergency-stop path without connected hardware.
 
 ## Run locally
 
@@ -50,11 +60,12 @@ python -m unittest discover -s tests -v
 
 The Vite build uses relative assets and hash navigation, so it works at `https://username.github.io/repository/` without hard-coding the repository name.
 
-To replace an existing GitHub repository without rebase conflicts, clone that repository into a
-fresh folder, rsync this release over it while excluding `.git/`, `node_modules/`, and `dist/`, then
-test, commit, and push. See [Publish v0.3.4](docs/PUBLISH_0.3.4.md) for the exact commands.
+To update the existing GitHub repository without rebase conflicts, rsync this release over the
+existing local clone while excluding `.git/`, `node_modules/`, and `dist/`, then test, commit, and
+push normally. Do not initialize a second unrelated Git history. Follow
+[Publish v0.4.0](docs/PUBLISH_0.4.0.md) for the exact commands.
 
-GitHub Pages is HTTPS. Browsers block an insecure `http://` robot endpoint. EKO v0.3.4 recommends Tailscale Serve, which gives the loopback API a trusted private HTTPS/WSS address without exposing port `8765` publicly. Configure EKO with the exact Pages origin:
+GitHub Pages is HTTPS. Browsers block an insecure `http://` robot endpoint. EKO v0.4.0 uses Tailscale Serve, which gives the loopback API a trusted private HTTPS/WSS address without exposing port `8765` publicly. Configure EKO with the exact Pages origin:
 
 ```dotenv
 EKO_API_HOST=127.0.0.1
@@ -75,7 +86,7 @@ Enter the printed `https://eko....ts.net` address in EKO Remote without `:8765`.
 
 ## Wi-Fi connection
 
-Start the EKO v0.3.4 API on the Raspberry Pi:
+Start the EKO v0.4.0 API on the Raspberry Pi:
 
 ```bash
 cd /home/pi/EKO
@@ -132,6 +143,8 @@ The service user must have permission to access BlueZ over D-Bus. Raspberry Pi O
 | Memory and logs | Yes | Yes |
 | Runtime settings | Yes | Yes |
 | Camera snapshot | Fast | Supported, but chunked and slower |
+| Browser mock media | WSS only | No |
+| Remote PTY | WSS only | No |
 
 BLE is a fallback control link, not a replacement for a high-bandwidth network. The protocol serializes GATT writes and fragments arbitrary JSON messages into 180-byte frames.
 
@@ -143,6 +156,9 @@ BLE is a fallback control link, not a replacement for a high-bandwidth network. 
 - BLE pairing grants the website access to a specific device; `EKO_BLE_TOKEN` adds an application-level check.
 - Hardware activation and safety acknowledgement remain restart-managed on the robot.
 - The Config page accepts only existing typed fields; unknown keys and invalid safety combinations are rejected.
+- All staged YAML edits are validated as one candidate and applied with multi-file rollback.
+- Mock media requires an explicit secure-context permission gesture and disconnect triggers a robot-side stop.
+- The terminal additionally requires an allowed Origin and, by default, a Tailscale Serve identity header.
 - The API never returns raw YAML or expanded `.env` values; secrets remain Pi-local.
 - Saved fallback Wi-Fi passwords are write-only and remain in a mode-0600 Pi runtime file.
 - Emergency stop is intentionally available without the BLE application token.

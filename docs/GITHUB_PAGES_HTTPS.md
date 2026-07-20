@@ -3,7 +3,7 @@
 The deployed Remote is an HTTPS page. A browser will block its JavaScript from fetching EKO at a
 plain LAN address such as `http://192.168.18.26:8765`.
 
-Use EKO v0.3.4's private Tailscale Serve setup:
+Use EKO v0.4.0's private Tailscale Serve setup:
 
 1. Install Tailscale on the Raspberry Pi and the controlling laptop or phone.
 2. Join both devices to the same tailnet.
@@ -16,3 +16,8 @@ Use EKO v0.3.4's private Tailscale Serve setup:
 Do not append port `8765` to the Tailscale HTTPS address. Tailscale terminates trusted HTTPS/WSS
 on port 443 and proxies privately to EKO on `127.0.0.1:8765`. Do not forward the raw API port on
 your router.
+
+Mock microphone/camera/speaker traffic and the optional PTY use WSS on the same private hostname.
+The controlling browser must be signed into the tailnet. Keep the Pi API on loopback: the terminal
+trusts Tailscale identity headers only on the local Serve-to-EKO proxy hop, never from a direct LAN
+client.

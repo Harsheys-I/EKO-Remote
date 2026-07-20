@@ -67,8 +67,19 @@ class EkoAPI:
             return "GET", "/config", None
         if operation == "config.update":
             return "POST", f"/config/{quote(str(payload['name']))}", {"values": payload.get("values", {})}
+        if operation == "config.batch":
+            return "POST", "/config/batch", {
+                "changes": payload.get("changes", {}),
+                "dry_run": bool(payload.get("dry_run", False)),
+            }
         if operation == "wifi.profiles":
             return "GET", "/wifi/profiles", None
         if operation == "wifi.profiles.update":
             return "POST", "/wifi/profiles", {"profiles": payload.get("profiles", [])}
+        if operation == "mock.status":
+            return "GET", "/mock/status", None
+        if operation == "mock.sensors":
+            return "POST", "/mock/sensors", {"readings": payload.get("readings", {})}
+        if operation == "terminal.status":
+            return "GET", "/terminal/status", None
         raise ValueError(f"Unsupported BLE operation: {operation}")

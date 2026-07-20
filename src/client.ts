@@ -1,4 +1,4 @@
-import type { ConfigListPayload, ConfigSavePayload, ControlStatus, DriveVector, EkoEvent, MemoryRecord, RuntimeSettings, ServiceResult, StatusPayload, TemporaryChatStatus, VisionSnapshot, WifiProfilesPayload, WifiRecoveryProfileDraft } from "./types";
+import type { ConfigBatchPayload, ConfigListPayload, ConfigSavePayload, ControlStatus, DriveVector, EkoEvent, MemoryRecord, MockHardwareStatus, RuntimeSettings, SensorHubStatus, ServiceResult, StatusPayload, TemporaryChatStatus, TerminalStatus, VisionSnapshot, WifiProfilesPayload, WifiRecoveryProfileDraft } from "./types";
 
 export class EkoClient {
   constructor(readonly transport: import("./transports/Transport").EkoTransport) {}
@@ -19,7 +19,12 @@ export class EkoClient {
   snapshot() { return this.transport.request<VisionSnapshot>("vision.snapshot"); }
   configFiles() { return this.transport.request<ConfigListPayload>("config.list"); }
   updateConfig(name: string, values: Record<string, unknown>) { return this.transport.request<ConfigSavePayload>("config.update", { name, values }); }
+  validateConfigBatch(changes: Record<string, Record<string, unknown>>) { return this.transport.request<ConfigBatchPayload>("config.batch", { changes, dry_run: true }); }
+  applyConfigBatch(changes: Record<string, Record<string, unknown>>) { return this.transport.request<ConfigBatchPayload>("config.batch", { changes, dry_run: false }); }
   wifiProfiles() { return this.transport.request<WifiProfilesPayload>("wifi.profiles"); }
   updateWifiProfiles(profiles: WifiRecoveryProfileDraft[]) { return this.transport.request<WifiProfilesPayload>("wifi.profiles.update", { profiles }); }
+  mockStatus() { return this.transport.request<MockHardwareStatus>("mock.status"); }
+  injectMockSensors(readings: Record<string, number>) { return this.transport.request<{ ok: boolean } & SensorHubStatus>("mock.sensors", { readings }); }
+  terminalStatus() { return this.transport.request<TerminalStatus>("terminal.status"); }
   stop() { return this.transport.emergencyStop(); }
 }

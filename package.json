@@ -1,7 +1,7 @@
 {
   "name": "eko-remote",
   "private": true,
-  "version": "0.3.4",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "lucide-react": "1.24.0",
     "react": "19.2.7",
     "react-dom": "19.2.7"

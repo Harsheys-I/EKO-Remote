@@ -1,39 +1,51 @@
-# EKO Remote v0.3.4 architecture
+# EKO Remote v0.4.0 architecture
+
+This is the definitive reference for the standalone GitHub Pages client. The browser is an I/O
+and operator adapter; the Raspberry Pi remains authoritative for AI, memory, configuration,
+motion, kinematics, sensor decisions, quotas, state, and safety.
 
 ## Deployable parts
 
 ```mermaid
 flowchart LR
-    Browser["GitHub Pages browser"] -->|"HTTPS + WSS"| TLS["Tailscale Serve"]
-    TLS -->|"Loopback HTTP"| API["EKO control API"]
-    Browser -->|"Web Bluetooth GATT"| Bridge["BLE bridge on Pi"]
-    Bridge -->|"Loopback HTTP"| API
-    API --> Runtime["EKO runtime + safety planner"]
+    Browser["GitHub Pages browser"] -->|"HTTPS + WSS"| Serve["Tailscale Serve"]
+    Serve -->|"loopback HTTP"| API["EKO control API"]
+    Browser -->|"Web Bluetooth GATT"| Bridge["optional BLE bridge"]
+    Bridge -->|"loopback HTTP"| API
+    Browser <-->|"authenticated /mock/ws"| Mock["Browser hardware hub on Pi"]
+    Browser <-->|"authenticated /terminal/ws"| PTY["service-user PTY on Pi"]
+    API --> Runtime["EKO runtime + Planner + Nano safety"]
 ```
 
-The browser is an operator client. The EKO runtime is authoritative for state, hardware, AI, persistence, and safety. The BLE bridge translates a framed GATT protocol into the same loopback HTTP API used by Wi-Fi, so transport choice does not create a second behavior implementation.
+Tailscale Serve is the intended Pages path: the public static bundle stays on GitHub, while the
+robot API remains private to the tailnet and listens on `127.0.0.1`. BLE is a low-bandwidth fallback
+for semantic API operations. Browser mock media and terminal control require HTTPS/WSS and do not
+run over BLE.
 
 ## Source map
 
 | Path | Responsibility |
 | --- | --- |
-| `src/transports/Transport.ts` | Transport-neutral request, telemetry, disconnect, and emergency-stop contract |
-| `src/transports/WifiTransport.ts` | HTTPS endpoints, WSS telemetry, bearer/subprotocol authentication |
-| `src/transports/BleTransport.ts` | Web Bluetooth discovery, GATT connection, serialized writes, response matching |
-| `src/transports/bleProtocol.ts` | Binary framing, fragmentation, validation, and reassembly |
-| `src/client.ts` | Typed EKO operations independent of the active transport |
-| `src/hooks/useEkoConnection.ts` | React connection lifecycle, status, events, polling, saved profile |
-| `src/components/` | Shared shell, connection dialog, panels, metrics, and toggles |
-| `src/pages/` | Dashboard, drive, AI/capability gates/temp-history, vision, memory, logs, typed config, and settings views |
-| `src/components/WifiProfilesEditor.tsx` | Structured SSID, write-only password, and priority editor |
-| `bridge/eko_ble_bridge.py` | BLE GATT peripheral and loopback API adapter |
-| `bridge/api_client.py` | Dependency-free mapping from semantic operations to EKO HTTP routes |
-| `bridge/protocol.py` | Python implementation of the BLE framing contract |
-| `.github/workflows/` | Test, static build, and GitHub Pages deployment |
+| `src/types.ts` | Shared API, status, config, quota, mock, sensor, and terminal types |
+| `src/client.ts` | Semantic operations independent of active transport |
+| `src/transports/WifiTransport.ts` | HTTPS routes and WSS telemetry |
+| `src/transports/BleTransport.ts` | Web Bluetooth GATT requests, chunks, and disconnect safety |
+| `src/transports/websocketAuth.ts` | Token subprotocol and HTTP→WS URL conversion |
+| `src/hooks/useEkoConnection.ts` | Link lifecycle, polling fallback, status/events, saved profile |
+| `src/hooks/useMockHardware.ts` | Permission gesture, PCM/JPEG/speaker/motion/sensor WSS bridge |
+| `src/pages/DashboardPage.tsx` | Mock Mode master switch and browser-device readiness |
+| `src/pages/DrivePage.tsx` | Manual/gamepad vectors and bounded top-down drivetrain twin |
+| `src/pages/ConfigPage.tsx` | Cross-file drafts and one validate/apply transaction |
+| `src/pages/TerminalPage.tsx` | xterm.js PTY client over authenticated WSS |
+| `src/components/WifiProfilesEditor.tsx` | Structured SSIDs and write-only passwords |
+| `bridge/api_client.py` | BLE semantic-operation to loopback HTTP mapping |
+| `bridge/protocol.py` | BLE frame fragmentation, validation, and reassembly |
+| `.github/workflows/deploy-pages.yml` | Test, build, Pages artifact, deploy |
 
-## Request flow
+## Ordinary request flow
 
-Every page calls `EkoClient`. The client chooses a semantic operation such as `drive`, `message`, or `vision.snapshot` and sends it through the active `EkoTransport`.
+Every page calls `EkoClient`, which sends a named operation through an `EkoTransport`. UI code never
+constructs a robot route directly except for the two specialized WSS channels.
 
 ```mermaid
 sequenceDiagram
@@ -41,86 +53,112 @@ sequenceDiagram
     participant Client as EkoClient
     participant Link as Wi-Fi or BLE
     participant Pi as EKO API
-
     Page->>Client: semantic operation
-    Client->>Link: request(operation, payload)
-    Link->>Pi: HTTPS route or BLE bridge
+    Client->>Link: request(name, typed payload)
+    Link->>Pi: HTTPS or BLE→loopback HTTP
     Pi-->>Link: typed result
-    Link-->>Client: response
-    Client-->>Page: data or error
+    Link-->>Page: data or normalized error
 ```
 
-## Motion safety
+The Wi-Fi transport opens `/ws` for telemetry and polls `/health` plus `/events` if WSS is lost.
+The API token is sent as a bearer header for fetch and as `eko.token.<base64url>` WebSocket
+subprotocol where browsers cannot set Authorization headers.
 
-The drive page sends normalized `vx`, `vy`, and `wz` vectors while input is held. Wi-Fi repeats every 250 ms; BLE repeats every 320 ms. Both are shorter than EKO's 750 ms dead-man interval.
+## Mock Mode: real processing, browser I/O
 
-Safety layers:
+The Dashboard switch is a user gesture. It requests browser microphone/camera permission, enables
+the Pi runtime setting, and opens `/mock/ws`. The hook keeps the media stream alive across page
+navigation with an off-screen video capture element owned by `App`.
 
-1. The page sends an explicit zero vector on release.
-2. Disconnect attempts emergency stop before closing the transport.
-3. BLE has a dedicated stop characteristic that bypasses normal request framing.
-4. The planner rejects movement when hardware is disabled or mode is stationary.
-5. The robot-side watchdog stops motion when repeated commands cease.
+| Direction | Message | Browser action | Pi action |
+| --- | --- | --- | --- |
+| Browser → Pi | `audio.chunk` | Downsample Web Audio to 16 kHz mono int16, batch 1,280 samples | openWakeWord / recording / STT |
+| Pi → Browser | `camera.capture` | Draw current video frame to bounded JPEG | Vision/snapshot consumes matching request |
+| Pi → Browser | `speaker.play` | Play bounded synthesized audio Blob | TTS remains on Pi |
+| Pi → Browser | `motion.command` | Integrate accepted vector and wheel values | Planner, speed limit, Mecanum solver, watchdog ran first |
+| Browser → Pi | `sensor.telemetry` | Send Nano-shaped debug reading | Same Nano validator and emergency stop |
 
-Only layers four and five are authoritative; browser behavior is additional defense.
+Only one browser hardware session is active. Replacement or disconnect stops motion. Media sizes
+are bounded; camera frames must carry a Pi-issued request ID; malformed messages receive protocol
+errors. The browser preview is local, but every AI frame is explicitly requested by and delivered
+to the Pi. No category, response, motion, or sensor decision is faked in JavaScript.
 
-## Credentials
+## Drive and Gamepad
 
-Wi-Fi and BLE use separate optional tokens. They are never Vite environment variables or bundle constants. When automatic reconnect is disabled, credentials are not written to local storage. The BLE bridge uses the API token only for its loopback HTTP calls and separately validates the BLE application token.
+Keyboard, touch joystick, and gamepad produce normalized `vx` (strafe), `vy` (forward), and `wz`
+(rotation). The operator must press **Enable gamepad** before polling `navigator.getGamepads()`.
+Axis 0 and inverted axis 1 use a 0.15 deadzone. Button 5 adds `+0.5` rotation and button 4 adds
+`-0.5` without clearing translation, matching the supplied controller behavior.
 
-## Configuration and storage telemetry
+The browser repeats active vectors every 250 ms over Wi-Fi or 320 ms over BLE, shorter than the Pi
+watchdog. Release, blur, visibility loss, gamepad disable, link disconnect, and component unmount
+send or attempt a stop. Only the Pi watchdog is authoritative.
 
-`config.list` returns fixed typed fields, constraints, and per-field restart metadata from EKO's
-authenticated API. It never returns raw YAML or expanded `.env` values. `config.update` accepts
-only value changes for existing dotted paths. The Config page renders type-appropriate controls,
-including every boolean switch. Settings intentionally does not duplicate them. The operator
-receives a restart prompt only when the server marks a changed field startup-managed.
+In Mock Mode, the top-down twin consumes Pi-returned motion rather than raw stick state. It rotates
+body-relative translation into the display coordinate system, caps integration timestep, treats
+commands older than 900 ms as zero, clamps the center inside the field, and shows all four normalized
+wheel values. Outside Mock Mode it is explicitly labeled a controller-vector preview.
 
-`wifi.profiles` is deliberately separate from `config.list`: profile rows are not arbitrary YAML.
-The editor can add, reorder by numeric priority, remove, replace, or explicitly clear passwords.
-A blank password field preserves a saved password; responses expose only `password_set`. The UI
-therefore never holds a previously saved Wi-Fi password and labels changes for the next boot or
-recovery run rather than claiming they applied to the current connection.
+## Atomic configuration editor
 
-## Temporary CHAT context
+`config.list` returns fixed typed leaf fields, groups, bounds, options, read-only environment names,
+and restart metadata—never raw YAML or expanded secrets. Changing pages does not discard a draft.
+The top action gathers only fields that differ from their baselines across all files.
 
-The AI page reads `chat.history` metadata and shows exact-exchange count, summary word count, and
-the total CHAT exchanges handled during this robot process. `chat.forget` clears that user's
-RAM-only context and resets the browser transcript while leaving durable SQLite MEMORY untouched.
-Neither endpoint returns temporary transcript text. Both Wi-Fi and BLE map to the same EKO API.
+1. `config.batch` with `dry_run=true` validates the full candidate on the Pi and writes nothing.
+2. If valid, the Remote submits the identical batch with `dry_run=false`.
+3. The Pi backs up and replaces all files transactionally, rolling back prior replacements on error.
+4. The UI reloads server values and presents one restart dialog if any startup-bound field changed.
 
-Memory records keep stable backend IDs for delete requests, but the API also returns a dynamic
-`display_index`. The UI reloads after deletion so visible numbering always becomes 1…N.
+Settings intentionally does not duplicate YAML toggles. Wi-Fi recovery profiles remain a separate
+structured store because saved passwords are write-only; an empty password preserves the previous
+secret and responses expose only `password_set`.
 
-Dashboard storage values come from `state.health`. EKO samples filesystem used/total capacity no
-more than once per minute; faster Wi-Fi/BLE telemetry frames reuse that sample.
+## Terminal page
 
-## Expensive capability gates
+The terminal uses xterm.js only as a renderer. It asks `terminal.status`, then opens `/terminal/ws`.
+Input and resize are bounded JSON control messages; output bytes are base64 so arbitrary terminal
+sequences survive JSON. Closing the page closes the PTY.
 
-The AI sidebar has three live gates backed by the ordinary settings route:
+This is a fresh service-user PTY, not a mirror of Raspberry Pi HDMI or `/dev/tty1`. The Pi refuses
+it unless `terminal.enabled` is true, the API token is non-empty, the Origin is allowed, and the
+configured Tailscale identity policy passes. xterm output is untrusted display data; the page does
+not interpret it as HTML. Root/admin work remains an SSH responsibility.
 
-| Gate | Robot setting | UI status |
+## Credentials and browser storage
+
+- The static bundle contains no API or BLE token.
+- Auto-reconnect profiles are stored in local storage only when the operator selects that option.
+- Wi-Fi and BLE application tokens are separate.
+- GitHub Pages must connect to an HTTPS endpoint; mixed `http://` fetches are rejected before use.
+- Mock media permission is browser-controlled and begins only from the Dashboard gesture.
+- Terminal access adds Tailscale identity and Origin gates on top of the API token.
+
+## Operation map
+
+| Operation | HTTP route | BLE mapping |
 | --- | --- | --- |
-| Web search | `web_search_enabled` | Enabled/disabled |
-| Camera questions | `camera_on_demand` | Configured state, remaining quota, and cooldown |
-| Song listening | `song_enabled` | Dependency state, remaining quota, and cooldown |
+| `message` | `POST /message` | Yes |
+| `drive` | `POST /drive` | Yes |
+| `settings.update` | `POST /settings` | Yes |
+| `config.list` | `GET /config` | Yes |
+| `config.batch` | `POST /config/batch` | Yes |
+| `wifi.profiles(.update)` | `GET/POST /wifi/profiles` | Yes |
+| `vision.snapshot` | `POST /vision/snapshot` | Yes, slow |
+| `mock.status` | `GET /mock/status` | Status only; media is WSS |
+| `mock.sensors` | `POST /mock/sensors` | Debug route mapped |
+| `terminal.status` | `GET /terminal/status` | Status mapped; PTY is WSS |
 
-The browser gate is a convenience and privacy control. The robot service checks the same setting
-again before capture, then enforces its own in-process sliding quota. Disabling or closing the page
-cannot bypass robot-side validation. Camera and song requests use the longer message timeout on
-both Wi-Fi and BLE because physical capture plus two cloud calls can exceed a normal JSON request.
+## Verification gates
 
-## Operation mapping
+```bash
+npm ci
+npm test
+npm run build
+cd bridge
+python -m unittest discover -s tests -v
+```
 
-| Semantic operation | Wi-Fi route | BLE bridge route |
-| --- | --- | --- |
-| `message` | `POST /message` | `POST /message` |
-| `settings.update` | `POST /settings` | `POST /settings` |
-| `wifi.profiles` | `GET /wifi/profiles` | `GET /wifi/profiles` |
-| `wifi.profiles.update` | `POST /wifi/profiles` | `POST /wifi/profiles` |
-| `vision.snapshot` | `POST /vision/snapshot` | `POST /vision/snapshot` |
-| `chat.forget` | `DELETE /chat/history` | `DELETE /chat/history` |
-
-## Bandwidth
-
-Wi-Fi is preferred for images and dense logs. BLE supports arbitrary JSON sizes through fragmentation, but the bridge serializes notifications and intentionally spaces frames to improve reliability. Status/events are compact and sent once per second.
+The browser tests verify semantic operation mapping and BLE framing; TypeScript strict build checks
+all pages/hooks. The EKO backend simulation suite owns media-buffer, serial, planner, sensor,
+configuration rollback, WebSocket protocol, and PTY runtime tests.

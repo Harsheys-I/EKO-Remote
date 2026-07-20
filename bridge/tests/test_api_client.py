@@ -56,6 +56,12 @@ class APIClientTests(unittest.TestCase):
             "wifi.profiles.update",
             {"profiles": [{"id": "a" * 24, "ssid": "EKO backup", "priority": 10}]},
         )
+        self.api.request(
+            "config.batch",
+            {"changes": {"sensors.yaml": {"distance_threshold_cm": 30}}, "dry_run": True},
+        )
+        self.api.request("mock.status")
+        self.api.request("terminal.status")
         self.assertEqual(Handler.calls[0], {"method": "POST", "path": "/message", "body": {"text": "hello"}, "authorization": "Bearer secret"})
         self.assertEqual(Handler.calls[1]["method"], "DELETE")
         self.assertEqual(Handler.calls[1]["path"], "/memory/7")
@@ -75,6 +81,10 @@ class APIClientTests(unittest.TestCase):
             Handler.calls[8]["body"],
             {"profiles": [{"id": "a" * 24, "ssid": "EKO backup", "priority": 10}]},
         )
+        self.assertEqual(Handler.calls[9]["path"], "/config/batch")
+        self.assertEqual(Handler.calls[9]["body"]["dry_run"], True)
+        self.assertEqual(Handler.calls[10]["path"], "/mock/status")
+        self.assertEqual(Handler.calls[11]["path"], "/terminal/status")
 
     def test_unknown_operation_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unsupported BLE operation"):

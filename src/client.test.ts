@@ -53,4 +53,27 @@ describe("EkoClient temporary CHAT operations", () => {
     await new EkoClient(link.value).updateWifiProfiles(profiles);
     expect(link.request).toHaveBeenCalledWith("wifi.profiles.update", { profiles });
   });
+
+  it("dry-runs the complete config candidate before the caller applies it", async () => {
+    const link = transport();
+    const changes = { "hardware.yaml": { "motors.deadzone": 0.12 }, "sensors.yaml": { distance_threshold_cm: 30 } };
+    await new EkoClient(link.value).validateConfigBatch(changes);
+    expect(link.request).toHaveBeenCalledWith("config.batch", { changes, dry_run: true });
+  });
+
+  it("applies all staged config files in one operation", async () => {
+    const link = transport();
+    const changes = { "mock.yaml": { browser_camera_enabled: false } };
+    await new EkoClient(link.value).applyConfigBatch(changes);
+    expect(link.request).toHaveBeenCalledWith("config.batch", { changes, dry_run: false });
+  });
+
+  it("uses dedicated mock-sensor and terminal status operations", async () => {
+    const link = transport();
+    const client = new EkoClient(link.value);
+    await client.injectMockSensors({ y_axis_rotation_in_degree: 0 });
+    await client.terminalStatus();
+    expect(link.request).toHaveBeenCalledWith("mock.sensors", { readings: { y_axis_rotation_in_degree: 0 } });
+    expect(link.request).toHaveBeenCalledWith("terminal.status");
+  });
 });

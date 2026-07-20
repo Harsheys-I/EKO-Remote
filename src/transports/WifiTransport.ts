@@ -1,6 +1,7 @@
 import type { EkoOperation, StatusPayload, TelemetryMessage } from "../types";
 import type { EkoTransport } from "./Transport";
 import { TransportBase } from "./Transport";
+import { websocketAuthProtocol, websocketUrl } from "./websocketAuth";
 
 type Route = { path: string; method?: "GET" | "POST" | "DELETE"; body?: Record<string, unknown> };
 
@@ -72,14 +73,18 @@ export class WifiTransport extends TransportBase implements EkoTransport {
       case "vision.snapshot": return { path: "/vision/snapshot", method: "POST", body: {} };
       case "config.list": return { path: "/config" };
       case "config.update": return { path: `/config/${encodeURIComponent(String(payload.name))}`, method: "POST", body: { values: payload.values } };
+      case "config.batch": return { path: "/config/batch", method: "POST", body: { changes: payload.changes, dry_run: payload.dry_run } };
       case "wifi.profiles": return { path: "/wifi/profiles" };
       case "wifi.profiles.update": return { path: "/wifi/profiles", method: "POST", body: { profiles: payload.profiles } };
+      case "mock.status": return { path: "/mock/status" };
+      case "mock.sensors": return { path: "/mock/sensors", method: "POST", body: { readings: payload.readings } };
+      case "terminal.status": return { path: "/terminal/status" };
     }
   }
 
   private openWebSocket() {
-    const endpoint = `${this.baseUrl.replace(/^http/, "ws")}/ws`;
-    const protocol = this.token ? this.authProtocol(this.token) : undefined;
+    const endpoint = websocketUrl(this.baseUrl, "/ws");
+    const protocol = this.token ? websocketAuthProtocol(this.token) : undefined;
     const socket = protocol ? new WebSocket(endpoint, [protocol]) : new WebSocket(endpoint);
     this.socket = socket;
     socket.onmessage = (event) => {
@@ -92,10 +97,4 @@ export class WifiTransport extends TransportBase implements EkoTransport {
     socket.onerror = () => socket.close();
   }
 
-  private authProtocol(token: string) {
-    const bytes = new TextEncoder().encode(token);
-    let binary = "";
-    bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-    return `eko.token.${window.btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "")}`;
-  }
 }
