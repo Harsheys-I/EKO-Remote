@@ -1,4 +1,4 @@
-# EKO Remote v0.4.0 architecture
+# EKO Remote v0.4.1 architecture
 
 This is the definitive reference for the standalone GitHub Pages client. The browser is an I/O
 and operator adapter; the Raspberry Pi remains authoritative for AI, memory, configuration,
@@ -33,7 +33,9 @@ run over BLE.
 | `src/transports/websocketAuth.ts` | Token subprotocol and HTTP→WS URL conversion |
 | `src/hooks/useEkoConnection.ts` | Link lifecycle, polling fallback, status/events, saved profile |
 | `src/hooks/useMockHardware.ts` | Permission gesture, PCM/JPEG/speaker/motion/sensor WSS bridge |
-| `src/pages/DashboardPage.tsx` | Mock Mode master switch and browser-device readiness |
+| `src/components/Shell.tsx` | Global top bar, link state, stop action, and Mock hardware switch |
+| `src/gamepad.ts` | Pure controller mapping, deadzone, and button/axis fallback logic |
+| `src/pages/DashboardPage.tsx` | Robot health, storage, capability, event, and safety summary |
 | `src/pages/DrivePage.tsx` | Manual/gamepad vectors and bounded top-down drivetrain twin |
 | `src/pages/ConfigPage.tsx` | Cross-file drafts and one validate/apply transaction |
 | `src/pages/TerminalPage.tsx` | xterm.js PTY client over authenticated WSS |
@@ -64,34 +66,43 @@ The Wi-Fi transport opens `/ws` for telemetry and polls `/health` plus `/events`
 The API token is sent as a bearer header for fetch and as `eko.token.<base64url>` WebSocket
 subprotocol where browsers cannot set Authorization headers.
 
-## Mock Mode: real processing, browser I/O
+## Mock hardware: real processing, browser I/O
 
-The Dashboard switch is a user gesture. It requests browser microphone/camera permission, enables
-the Pi runtime setting, and opens `/mock/ws`. The hook keeps the media stream alive across page
-navigation with an off-screen video capture element owned by `App`.
+The top-bar switch is available on every page and supplies the required user gesture. Enabling it
+requests only microphone permission, enables the Pi runtime setting, and opens `/mock/ws`. Message
+handlers are installed before `hello` is sent, and the hook does not report success until the Pi
+returns `session.ready`. A refused microphone becomes a device warning rather than a bridge-wide
+failure, so the other adapters remain available.
+
+Camera permission is deliberately lazy. A Pi `camera.capture` message creates a new video-only
+stream, captures one bounded JPEG through the off-screen video element owned by `App`, and stops
+all camera tracks in `finally`. The camera is therefore off between requests. A denied or failed
+capture returns a matching `camera.frame` error without closing `/mock/ws` or changing `mock_mode`.
 
 | Direction | Message | Browser action | Pi action |
 | --- | --- | --- | --- |
 | Browser → Pi | `audio.chunk` | Downsample Web Audio to 16 kHz mono int16, batch 1,280 samples | openWakeWord / recording / STT |
-| Pi → Browser | `camera.capture` | Draw current video frame to bounded JPEG | Vision/snapshot consumes matching request |
+| Pi → Browser | `camera.capture` | Open camera, draw one frame to bounded JPEG, stop track | Vision/snapshot consumes matching request |
 | Pi → Browser | `speaker.play` | Play bounded synthesized audio Blob | TTS remains on Pi |
 | Pi → Browser | `motion.command` | Integrate accepted vector and wheel values | Planner, speed limit, Mecanum solver, watchdog ran first |
 | Browser → Pi | `sensor.telemetry` | Send Nano-shaped debug reading | Same Nano validator and emergency stop |
 
 Only one browser hardware session is active. Replacement or disconnect stops motion. Media sizes
 are bounded; camera frames must carry a Pi-issued request ID; malformed messages receive protocol
-errors. The browser preview is local, but every AI frame is explicitly requested by and delivered
-to the Pi. No category, response, motion, or sensor decision is faked in JavaScript.
+errors. No category, response, motion, or sensor decision is faked in JavaScript; the normal EKO
+pipeline sees an injected adapter with the same contracts as physical hardware.
 
 ## Drive and Gamepad
 
 Keyboard, touch joystick, and gamepad produce normalized `vx` (strafe), `vy` (forward), and `wz`
-(rotation). The operator must press **Enable gamepad** before polling `navigator.getGamepads()`.
-Axis 0 and inverted axis 1 use a 0.15 deadzone. Button 5 adds `+0.5` rotation and button 4 adds
-`-0.5` without clearing translation, matching the supplied controller behavior.
+(rotation). While Drive is mounted it polls `navigator.getGamepads()` and listens for browser
+connection events; there is no second software pairing or activation state. Axis 0 and inverted
+axis 1 use a 0.15 deadzone. Button 5 adds `+0.5` rotation and button 4 adds `-0.5` without clearing
+translation, matching the supplied controller behavior. Other axes are ignored so non-standard
+trigger axes cannot create unintended rotation.
 
 The browser repeats active vectors every 250 ms over Wi-Fi or 320 ms over BLE, shorter than the Pi
-watchdog. Release, blur, visibility loss, gamepad disable, link disconnect, and component unmount
+watchdog. Release, blur, visibility loss, controller disconnect, link disconnect, and component unmount
 send or attempt a stop. Only the Pi watchdog is authoritative.
 
 In Mock Mode, the top-down twin consumes Pi-returned motion rather than raw stick state. It rotates
@@ -131,7 +142,7 @@ not interpret it as HTML. Root/admin work remains an SSH responsibility.
 - Auto-reconnect profiles are stored in local storage only when the operator selects that option.
 - Wi-Fi and BLE application tokens are separate.
 - GitHub Pages must connect to an HTTPS endpoint; mixed `http://` fetches are rejected before use.
-- Mock media permission is browser-controlled and begins only from the Dashboard gesture.
+- Mock media permission is browser-controlled and begins only from the global top-bar gesture.
 - Terminal access adds Tailscale identity and Origin gates on top of the API token.
 
 ## Operation map

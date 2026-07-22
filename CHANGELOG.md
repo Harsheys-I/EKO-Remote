@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.1
+
+- Moved the Mock hardware master switch into the global top bar so it is available on every page.
+- Changed browser camera handling to acquire one video-only stream per Pi request, capture one bounded JPEG, and always stop every camera track immediately afterward.
+- Isolated camera permission/capture failures from the hardware WebSocket so CAMERA errors no longer disable Mock hardware.
+- Fixed the browser-hardware handshake race by installing message handlers before sending `hello` and waiting for `session.ready`.
+- Changed microphone startup failure into a per-device warning so camera, speaker, gamepad, and the drivetrain twin remain usable.
+- Removed the artificial gamepad activation/pairing gate; Drive now discovers already-connected controllers automatically and preserves axes 0/1 plus L1/R1 button 4/5 behavior.
+- Added gamepad mapping regressions and raised the verified browser test count to 12.
+
 ## 0.4.0
 
 - Added a Dashboard Mock Mode master switch that explicitly requests browser microphone/camera access and opens a dedicated authenticated WSS hardware channel.

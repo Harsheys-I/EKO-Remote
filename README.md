@@ -1,4 +1,4 @@
-# EKO Remote v0.4.0
+# EKO Remote v0.4.1
 
 EKO Remote is a standalone, static mission-control website for the EKO robot. Host it on GitHub Pages and connect to EKO over either:
 
@@ -11,8 +11,8 @@ The website contains no robot credentials at build time. Connection addresses an
 
 | Area | Capabilities |
 | --- | --- |
-| Dashboard | Robot/Pi telemetry plus the browser Mock Mode master switch and device permissions |
-| Drive | Touch/keyboard, explicit Gamepad API, combined translation/rotation, top-down Mecanum twin, mock sensor hazard, emergency stop |
+| Dashboard | Robot/Pi telemetry and safety state |
+| Drive | Touch/keyboard, automatically detected Gamepad API, combined translation/rotation, top-down Mecanum twin, mock sensor hazard, emergency stop |
 | AI & Voice | Request router, temporary CHAT status, Forget history, Web/Camera/Song live gates, quotas, and cooldowns |
 | Vision | Explicit one-frame camera capture with privacy state |
 | Memory | Search, create, and delete SQLite memories with dynamic 1…N display numbers |
@@ -25,12 +25,17 @@ Motion remains protected by EKO's Raspberry Pi-side safety gate and 750 ms dead-
 
 ## Mock Mode
 
-Use the Dashboard switch from a current HTTPS browser and grant microphone/camera permission. The
-browser supplies only physical I/O: audio is streamed as 16 kHz PCM to Pi-side openWakeWord/STT,
-camera JPEGs are returned only for Pi-issued capture requests, Pi-side TTS plays on the browser,
-and accepted Pi motion drives the top-down twin. Groq, memory, routing, quotas, kinematics,
+Use the **Mock hardware** switch in the top bar from any page. The browser supplies only physical
+I/O: microphone audio streams as 16 kHz PCM to Pi-side openWakeWord/STT; the camera opens lazily
+for one Pi-issued capture request and stops immediately afterward; Pi-side TTS plays through the
+browser; and accepted Pi motion drives the top-down twin. A camera permission error affects only
+that request and does not disable the hardware session. Groq, memory, routing, quotas, kinematics,
 watchdogs, and Nano safety remain real. The Drive page can inject a Nano-shaped obstacle packet to
 exercise the genuine emergency-stop path without connected hardware.
+
+Gamepads are detected automatically while the Drive page is open. There is no software pairing
+button: connect the controller to the phone or laptop, open Drive, and press or move a control.
+The supplied layout uses left-stick axes 0/1 for translation and L1/R1 buttons 4/5 for rotation.
 
 ## Run locally
 
@@ -63,9 +68,9 @@ The Vite build uses relative assets and hash navigation, so it works at `https:/
 To update the existing GitHub repository without rebase conflicts, rsync this release over the
 existing local clone while excluding `.git/`, `node_modules/`, and `dist/`, then test, commit, and
 push normally. Do not initialize a second unrelated Git history. Follow
-[Publish v0.4.0](docs/PUBLISH_0.4.0.md) for the exact commands.
+[Publish v0.4.1](docs/PUBLISH_0.4.1.md) for the exact commands.
 
-GitHub Pages is HTTPS. Browsers block an insecure `http://` robot endpoint. EKO v0.4.0 uses Tailscale Serve, which gives the loopback API a trusted private HTTPS/WSS address without exposing port `8765` publicly. Configure EKO with the exact Pages origin:
+GitHub Pages is HTTPS. Browsers block an insecure `http://` robot endpoint. EKO v0.4.1 uses Tailscale Serve, which gives the loopback API a trusted private HTTPS/WSS address without exposing port `8765` publicly. Configure EKO with the exact Pages origin:
 
 ```dotenv
 EKO_API_HOST=127.0.0.1
@@ -86,7 +91,7 @@ Enter the printed `https://eko....ts.net` address in EKO Remote without `:8765`.
 
 ## Wi-Fi connection
 
-Start the EKO v0.4.0 API on the Raspberry Pi:
+Start the EKO v0.4.1 API on the Raspberry Pi:
 
 ```bash
 cd /home/pi/EKO

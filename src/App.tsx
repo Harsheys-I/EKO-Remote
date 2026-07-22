@@ -78,13 +78,16 @@ export default function App() {
     window.location.reload();
   };
   const state = connection.status?.state ?? offlineState;
+  const voiceError = mock.active ? connection.status?.capability_status?.mock?.voice_error : null;
+  const hardwareNotice = mock.error || mock.warning || (voiceError ? `Pi audio pipeline: ${voiceError}` : null);
 
   return <div className="app-shell">
     <Sidebar view={view} stats={connection.stats} onNavigate={navigate} />
     <main className="main-shell">
-      <Topbar view={view} state={state} stats={connection.stats} onConnect={() => setShowConnection(true)} onDisconnect={() => void connection.disconnect()} onRefresh={() => void connection.refresh()} onStop={() => void stop()} />
+      <Topbar view={view} state={state} stats={connection.stats} mock={mock} onConnect={() => setShowConnection(true)} onDisconnect={() => void connection.disconnect()} onRefresh={() => void connection.refresh()} onStop={() => void stop()} />
+      {hardwareNotice && <div className={`hardware-bridge-notice ${mock.error || voiceError ? "error" : "warning"}`} role="status"><strong>{mock.error ? "Browser hardware disconnected" : voiceError ? "Pi audio pipeline unavailable" : "Browser hardware notice"}</strong><span>{hardwareNotice}</span></div>}
       <div className="page-content">
-        {view === "dashboard" && <DashboardPage status={connection.status} events={connection.events} stats={connection.stats} mock={mock} onNavigate={navigate} onConnect={() => setShowConnection(true)} />}
+        {view === "dashboard" && <DashboardPage status={connection.status} events={connection.events} stats={connection.stats} onNavigate={navigate} onConnect={() => setShowConnection(true)} />}
         {view === "drive" && <DrivePage client={connection.client} state={state} settings={connection.status?.settings ?? null} stats={connection.stats} mock={mock} onSettings={connection.applySettings} />}
         {view === "ai" && <AIPage client={connection.client} status={connection.status} events={connection.events} stats={connection.stats} onSettings={connection.applySettings} />}
         {view === "vision" && <VisionPage client={connection.client} status={connection.status} stats={connection.stats} onSettings={connection.applySettings} />}

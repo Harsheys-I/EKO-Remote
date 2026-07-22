@@ -5,21 +5,24 @@ import { websocketAuthProtocol, websocketUrl } from "../transports/websocketAuth
 import type { ConnectionProfile, LinkStats, MockMotion, RuntimeSettings } from "../types";
 
 type MockMessage = Record<string, unknown> & { type?: string };
+type BrowserDevices = { microphone: boolean; camera: boolean; speaker: boolean; gamepad: boolean };
 
 export interface MockHardwareController {
   active: boolean;
   connecting: boolean;
+  cameraActive: boolean;
   error: string | null;
-  stream: MediaStream | null;
+  warning: string | null;
   videoRef: RefObject<HTMLVideoElement | null>;
   motion: MockMotion;
-  devices: { microphone: boolean; camera: boolean; speaker: boolean };
+  devices: BrowserDevices;
   enable: () => Promise<void>;
   disable: () => Promise<void>;
   sendSensorReadings: (readings: Record<string, number>) => void;
 }
 
 const stoppedMotion: MockMotion = { vx: 0, vy: 0, wz: 0, wheels: {}, receivedAt: 0 };
+const stoppedDevices: BrowserDevices = { microphone: false, camera: false, speaker: false, gamepad: false };
 
 function bytesToBase64(bytes: Uint8Array) {
   let binary = "";
@@ -51,20 +54,46 @@ function downsample(input: Float32Array, sourceRate: number, targetRate = 16000)
   return output;
 }
 
-async function requestBrowserMedia() {
-  if (!navigator.mediaDevices?.getUserMedia) throw new Error("This browser does not provide camera/microphone access.");
-  try {
-    return await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "environment" } });
-  } catch (combinedError) {
-    const tracks: MediaStreamTrack[] = [];
-    const failures: string[] = [];
-    try { tracks.push(...(await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks()); }
-    catch (cause) { failures.push(`microphone: ${cause instanceof Error ? cause.message : String(cause)}`); }
-    try { tracks.push(...(await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })).getTracks()); }
-    catch (cause) { failures.push(`camera: ${cause instanceof Error ? cause.message : String(cause)}`); }
-    if (!tracks.length) throw new Error(failures.join("; ") || (combinedError instanceof Error ? combinedError.message : "Media permission was denied"));
-    return new MediaStream(tracks);
+async function requestBrowserMicrophone(): Promise<{ stream: MediaStream | null; warning: string | null }> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return { stream: null, warning: "This browser cannot provide microphone audio. Camera, gamepad, and simulation remain available." };
   }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false,
+    });
+    return { stream, warning: null };
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    return { stream: null, warning: `Microphone access is unavailable (${detail}). Camera, gamepad, and simulation remain available.` };
+  }
+}
+
+async function waitForVideoFrame(video: HTMLVideoElement) {
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth && video.videoHeight) return;
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => finish(new Error("Camera did not produce a frame in time")), 8000);
+    const ready = () => finish();
+    const failed = () => finish(new Error("Browser camera could not start"));
+    const finish = (error?: Error) => {
+      window.clearTimeout(timeout);
+      video.removeEventListener("loadeddata", ready);
+      video.removeEventListener("canplay", ready);
+      video.removeEventListener("error", failed);
+      if (error) reject(error); else resolve();
+    };
+    video.addEventListener("loadeddata", ready, { once: true });
+    video.addEventListener("canplay", ready, { once: true });
+    video.addEventListener("error", failed, { once: true });
+  });
+}
+
+async function canvasJpeg(canvas: HTMLCanvasElement) {
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Canvas JPEG capture is unavailable")), "image/jpeg", 0.82);
+  });
+  return new Uint8Array(await blob.arrayBuffer());
 }
 
 export function useMockHardware(
@@ -75,17 +104,21 @@ export function useMockHardware(
 ): MockHardwareController {
   const [active, setActive] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [motion, setMotion] = useState<MockMotion>(stoppedMotion);
-  const [devices, setDevices] = useState({ microphone: false, camera: false, speaker: false });
+  const [devices, setDevices] = useState<BrowserDevices>(stoppedDevices);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
-  const mediaRef = useRef<MediaStream | null>(null);
+  const microphoneRef = useRef<MediaStream | null>(null);
+  const cameraRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioNodeRef = useRef<ScriptProcessorNode | null>(null);
   const heartbeatRef = useRef<number | null>(null);
   const playbackRef = useRef<Set<HTMLAudioElement>>(new Set());
+  const captureInFlightRef = useRef(false);
+  const lifecycleRef = useRef(0);
 
   const send = useCallback((payload: MockMessage) => {
     const socket = socketRef.current;
@@ -93,6 +126,7 @@ export function useMockHardware(
   }, []);
 
   const stopLocal = useCallback((closeSocket = true) => {
+    lifecycleRef.current += 1;
     if (heartbeatRef.current !== null) window.clearInterval(heartbeatRef.current);
     heartbeatRef.current = null;
     if (audioNodeRef.current) {
@@ -102,8 +136,10 @@ export function useMockHardware(
     audioNodeRef.current = null;
     if (audioContextRef.current) void audioContextRef.current.close();
     audioContextRef.current = null;
-    mediaRef.current?.getTracks().forEach((track) => track.stop());
-    mediaRef.current = null;
+    microphoneRef.current?.getTracks().forEach((track) => track.stop());
+    microphoneRef.current = null;
+    cameraRef.current?.getTracks().forEach((track) => track.stop());
+    cameraRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     playbackRef.current.forEach((audio) => { audio.pause(); URL.revokeObjectURL(audio.src); });
     playbackRef.current.clear();
@@ -112,29 +148,65 @@ export function useMockHardware(
       socketRef.current.close();
     }
     socketRef.current = null;
-    setStream(null);
+    captureInFlightRef.current = false;
+    setCameraActive(false);
     setActive(false);
-    setDevices({ microphone: false, camera: false, speaker: false });
+    setDevices(stoppedDevices);
     setMotion(stoppedMotion);
   }, []);
 
-  const captureFrame = useCallback((requestId: string) => {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight) {
-      send({ type: "camera.frame", request_id: requestId, error: "Browser camera has no ready video frame" });
+  const captureFrame = useCallback(async (requestId: string) => {
+    if (!requestId) return;
+    if (captureInFlightRef.current) {
+      send({ type: "camera.frame", request_id: requestId, error: "Another camera capture is already in progress" });
       return;
     }
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.min(video.videoWidth, 1280);
-    canvas.height = Math.round(canvas.width * video.videoHeight / video.videoWidth);
-    const context = canvas.getContext("2d");
-    if (!context) {
-      send({ type: "camera.frame", request_id: requestId, error: "Canvas capture is unavailable" });
-      return;
+    captureInFlightRef.current = true;
+    const lifecycle = lifecycleRef.current;
+    setCameraActive(true);
+    let camera: MediaStream | null = null;
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("This browser does not provide camera access");
+      const video = videoRef.current;
+      if (!video) throw new Error("Camera capture surface is not ready");
+      camera = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      if (lifecycleRef.current !== lifecycle || socketRef.current?.readyState !== WebSocket.OPEN) {
+        throw new Error("Browser hardware session ended before the camera became ready");
+      }
+      cameraRef.current = camera;
+      video.srcObject = camera;
+      await video.play();
+      await waitForVideoFrame(video);
+
+      const largest = Math.max(video.videoWidth, video.videoHeight);
+      const scale = Math.min(1, 1280 / Math.max(1, largest));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas capture is unavailable");
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const jpeg = await canvasJpeg(canvas);
+      send({ type: "camera.frame", request_id: requestId, image_base64: bytesToBase64(jpeg) });
+      setDevices((current) => ({ ...current, camera: true }));
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      if (lifecycleRef.current === lifecycle) {
+        send({ type: "camera.frame", request_id: requestId, error: message });
+        setWarning(`Camera capture failed: ${message}`);
+      }
+    } finally {
+      camera?.getTracks().forEach((track) => track.stop());
+      if (cameraRef.current === camera) cameraRef.current = null;
+      if (videoRef.current?.srcObject === camera) videoRef.current.srcObject = null;
+      if (lifecycleRef.current === lifecycle) {
+        captureInFlightRef.current = false;
+        setCameraActive(false);
+      }
     }
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const data = canvas.toDataURL("image/jpeg", 0.86);
-    send({ type: "camera.frame", request_id: requestId, image_base64: data.split(",", 2)[1] });
   }, [send]);
 
   const playSpeaker = useCallback((message: MockMessage) => {
@@ -156,9 +228,9 @@ export function useMockHardware(
     }
   }, [send]);
 
-  const startAudio = useCallback(async (media: MediaStream) => {
-    const audioTracks = media.getAudioTracks();
-    if (!audioTracks.length) return;
+  const startAudio = useCallback(async (media: MediaStream | null) => {
+    const audioTracks = media?.getAudioTracks() ?? [];
+    if (!audioTracks.length) return false;
     const context = new AudioContext();
     await context.resume();
     const source = context.createMediaStreamSource(new MediaStream(audioTracks));
@@ -179,88 +251,120 @@ export function useMockHardware(
     silent.connect(context.destination);
     audioContextRef.current = context;
     audioNodeRef.current = processor;
+    return true;
   }, [send]);
 
-  const openSocket = useCallback(async (media: MediaStream) => {
+  const openSocket = useCallback(async (media: MediaStream | null, cameraAvailable: boolean) => {
     const endpoint = websocketUrl(profile.wifiUrl, "/mock/ws");
     const protocol = profile.wifiToken ? websocketAuthProtocol(profile.wifiToken) : undefined;
     const socket = protocol ? new WebSocket(endpoint, [protocol]) : new WebSocket(endpoint);
     socketRef.current = socket;
     await new Promise<void>((resolve, reject) => {
-      const timeout = window.setTimeout(() => reject(new Error("Mock hardware WebSocket timed out")), 10000);
-      socket.onopen = () => {
+      let ready = false;
+      const timeout = window.setTimeout(() => {
+        if (!ready) reject(new Error("Browser hardware WebSocket timed out before EKO confirmed the session"));
+      }, 10000);
+      const failBeforeReady = (message: string) => {
+        if (ready) return;
         window.clearTimeout(timeout);
+        reject(new Error(message));
+      };
+      socket.onopen = () => {
         socket.send(JSON.stringify({
           type: "hello",
-          microphone: media.getAudioTracks().length > 0,
-          camera: media.getVideoTracks().length > 0,
+          microphone: Boolean(media?.getAudioTracks().length),
+          camera: cameraAvailable,
           speaker: true,
           gamepad: "getGamepads" in navigator,
           user_agent: navigator.userAgent.slice(0, 240),
         }));
-        resolve();
       };
-      socket.onerror = () => { window.clearTimeout(timeout); reject(new Error("Could not open the authenticated mock hardware channel")); };
-    });
-    socket.onmessage = (event) => {
-      try {
-        const message = JSON.parse(String(event.data)) as MockMessage;
-        switch (message.type) {
-          case "session.ready":
-            setActive(true);
-            setError(null);
-            break;
-          case "camera.capture": captureFrame(String(message.request_id ?? "")); break;
-          case "speaker.play": playSpeaker(message); break;
-          case "motion.command":
-            setMotion({
-              vx: Number(message.vx ?? 0), vy: Number(message.vy ?? 0), wz: Number(message.wz ?? 0),
-              wheels: typeof message.wheels === "object" && message.wheels ? message.wheels as Record<string, number> : {}, receivedAt: performance.now(),
-            });
-            break;
-          case "heartbeat.request": send({ type: "heartbeat", sent_at: Date.now() / 1000 }); break;
-          case "session.replaced": setError("This mock session was replaced by another browser."); break;
-          case "protocol.error": setError(String(message.error ?? "Mock protocol error")); break;
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(String(event.data)) as MockMessage;
+          switch (message.type) {
+            case "session.ready":
+              ready = true;
+              window.clearTimeout(timeout);
+              setActive(true);
+              setError(null);
+              resolve();
+              break;
+            case "camera.capture": void captureFrame(String(message.request_id ?? "")); break;
+            case "speaker.play": playSpeaker(message); break;
+            case "motion.command":
+              setMotion({
+                vx: Number(message.vx ?? 0), vy: Number(message.vy ?? 0), wz: Number(message.wz ?? 0),
+                wheels: typeof message.wheels === "object" && message.wheels ? message.wheels as Record<string, number> : {}, receivedAt: performance.now(),
+              });
+              break;
+            case "heartbeat.request": send({ type: "heartbeat", sent_at: Date.now() / 1000 }); break;
+            case "session.replaced": setError("This browser hardware session was replaced by another browser."); break;
+            case "protocol.error": setWarning(String(message.error ?? "Browser hardware protocol error")); break;
+          }
+        } catch {
+          setWarning("EKO sent an invalid browser hardware message.");
         }
-      } catch { setError("The Pi sent an invalid mock hardware message."); }
-    };
-    socket.onclose = () => {
-      if (socketRef.current === socket) {
-        stopLocal(false);
-        setError("Mock hardware channel disconnected. EKO applied an emergency stop.");
-      }
-    };
-    socket.onerror = () => socket.close();
+      };
+      socket.onerror = () => {
+        failBeforeReady("Could not open the authenticated browser hardware channel");
+        socket.close();
+      };
+      socket.onclose = () => {
+        failBeforeReady("Browser hardware channel closed before EKO confirmed the session");
+        if (socketRef.current === socket) {
+          stopLocal(false);
+          setError("Browser hardware disconnected. EKO applied an emergency stop.");
+        }
+      };
+    });
     heartbeatRef.current = window.setInterval(() => send({ type: "heartbeat", sent_at: Date.now() / 1000 }), 15000);
   }, [captureFrame, playSpeaker, profile.wifiToken, profile.wifiUrl, send, stopLocal]);
 
   const enable = useCallback(async () => {
-    if (!client || !stats.connected) throw new Error("Connect to EKO before enabling mock mode.");
-    if (profile.kind !== "wifi") throw new Error("Mock hardware needs the HTTPS/WSS Wi-Fi connection, not BLE.");
-    if (!window.isSecureContext && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      throw new Error("Camera and microphone access requires an HTTPS website.");
-    }
+    if (!client || !stats.connected) throw new Error("Connect to EKO before enabling browser hardware.");
+    if (profile.kind !== "wifi") throw new Error("Browser hardware requires the HTTPS/WSS Wi-Fi connection, not BLE.");
     setConnecting(true);
     setError(null);
+    setWarning(null);
     stopLocal();
+    let enabledOnRobot = false;
     try {
-      const media = await requestBrowserMedia();
-      mediaRef.current = media;
-      setStream(media);
-      setDevices({ microphone: media.getAudioTracks().length > 0, camera: media.getVideoTracks().length > 0, speaker: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = media;
-        await videoRef.current.play().catch(() => undefined);
-      }
+      const cameraAvailable = Boolean(navigator.mediaDevices?.getUserMedia);
+      const microphone = await requestBrowserMicrophone();
+      microphoneRef.current = microphone.stream;
+      setWarning(microphone.warning);
+      setDevices({
+        microphone: Boolean(microphone.stream?.getAudioTracks().length),
+        camera: cameraAvailable,
+        speaker: true,
+        gamepad: "getGamepads" in navigator,
+      });
+      await openSocket(microphone.stream, cameraAvailable);
       const settings = await client.updateSettings({ mock_mode: true, voice_responses: true });
+      enabledOnRobot = true;
       onSettings(settings);
-      await openSocket(media);
-      await startAudio(media);
-      send({ type: "device.status", microphone: media.getAudioTracks().length > 0, camera: media.getVideoTracks().length > 0, speaker: true });
+
+      let microphoneReady = Boolean(microphone.stream?.getAudioTracks().length);
+      if (microphoneReady) {
+        try {
+          microphoneReady = await startAudio(microphone.stream);
+        } catch (cause) {
+          microphone.stream?.getTracks().forEach((track) => track.stop());
+          microphoneRef.current = null;
+          microphoneReady = false;
+          const detail = cause instanceof Error ? cause.message : String(cause);
+          setWarning(`Microphone streaming could not start (${detail}). Other browser hardware remains active.`);
+        }
+      }
+      setDevices((current) => ({ ...current, microphone: microphoneReady }));
+      send({ type: "device.status", microphone: microphoneReady, camera: cameraAvailable, speaker: true, gamepad: "getGamepads" in navigator });
     } catch (cause) {
       stopLocal();
-      try { onSettings(await client.updateSettings({ mock_mode: false })); } catch { /* Pi link may have failed */ }
-      const message = cause instanceof Error ? cause.message : "Could not start browser mock hardware";
+      if (enabledOnRobot) {
+        try { onSettings(await client.updateSettings({ mock_mode: false })); } catch { /* Pi link may have failed */ }
+      }
+      const message = cause instanceof Error ? cause.message : "Could not start browser hardware";
       setError(message);
       throw cause;
     } finally {
@@ -269,9 +373,18 @@ export function useMockHardware(
   }, [client, onSettings, openSocket, profile.kind, send, startAudio, stats.connected, stopLocal]);
 
   const disable = useCallback(async () => {
-    stopLocal();
     setError(null);
-    if (client) onSettings(await client.updateSettings({ mock_mode: false }));
+    setWarning(null);
+    // Release browser devices immediately; a slow API acknowledgement must
+    // never keep the microphone or an in-flight camera stream alive.
+    stopLocal();
+    try {
+      if (client) onSettings(await client.updateSettings({ mock_mode: false }));
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      setError(`Browser hardware stopped locally, but EKO did not confirm the mode change: ${detail}`);
+      throw cause;
+    }
   }, [client, onSettings, stopLocal]);
 
   const sendSensorReadings = useCallback((readings: Record<string, number>) => {
@@ -282,13 +395,6 @@ export function useMockHardware(
   useEffect(() => {
     if (!stats.connected && active) stopLocal();
   }, [active, stats.connected, stopLocal]);
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video && stream && video.srcObject !== stream) {
-      video.srcObject = stream;
-      void video.play().catch(() => undefined);
-    }
-  }, [stream]);
 
-  return { active, connecting, error, stream, videoRef, motion, devices, enable, disable, sendSensorReadings };
+  return { active, connecting, cameraActive, error, warning, videoRef, motion, devices, enable, disable, sendSensorReadings };
 }

@@ -1,17 +1,18 @@
-# EKO Remote v0.4.0 release manifest
+# EKO Remote v0.4.1 release manifest
 
-Release date: 2026-07-19
+Release date: 2026-07-20
 
 Verified release gates:
 
-- 9 Vitest semantic-client and BLE framing checks
+- 12 Vitest semantic-client, BLE framing, and gamepad-mapping checks
 - 4 Python BLE bridge/API mapping checks
 - strict TypeScript project build
 - Vite production build for a GitHub Pages project path
 - no `.env`, API key, API token, `node_modules`, or generated `dist` in the release archive
 
-The source includes Dashboard Mock Mode, browser media adapters, the Pi-accepted Mecanum twin,
-explicit Gamepad controls, cross-file staged configuration, structured Wi-Fi profiles, the
+The source includes a global Mock hardware switch, lazy one-frame browser camera capture,
+continuous optional browser microphone PCM, Pi-side speaker playback, an automatically detected
+Gamepad, the Pi-accepted Mecanum twin, cross-file staged configuration, structured Wi-Fi profiles, the
 authenticated PTY page, GitHub Pages Actions deployment, BLE fallback bridge, architecture and
 publishing references, and transport tests.
 
