@@ -34,9 +34,8 @@ export interface RuntimeSettings {
   web_search_enabled: boolean;
   camera_on_demand: boolean;
   song_enabled: boolean;
-  mock_mode: boolean;
-  mock_connected: boolean;
   hardware_enabled: boolean;
+  motors_enabled: boolean;
   vision_enabled: boolean;
   audio_enabled: boolean;
   requires_restart: string[];
@@ -69,9 +68,19 @@ export interface StatusPayload {
   capability_status?: {
     camera: CapabilityQuotaStatus;
     song: CapabilityQuotaStatus;
-    mock?: MockHardwareStatus;
     sensors?: SensorHubStatus;
     terminal?: TerminalStatus;
+    eyes?: EyesStatus;
+    faces?: FaceStatus;
+    person_follow?: FollowStatus;
+    vision_runtime?: VisionRuntimeStatus;
+    speaker?: SpeakerStatus;
+    spotify?: SpotifyStatus;
+    odometry?: OdometryStatus;
+    sound_direction?: SoundDirectionStatus;
+    workflows?: WorkflowStatus;
+    motors?: MotorRuntimeStatus;
+    physical_voice?: PhysicalVoiceStatus;
   };
   settings: RuntimeSettings;
   ai: AIStatus;
@@ -87,19 +96,6 @@ export interface CapabilityQuotaStatus {
   retry_after_seconds: number;
 }
 
-export interface MockHardwareStatus {
-  enabled: boolean;
-  connected: boolean;
-  session_id: string | null;
-  connected_at: number | null;
-  last_seen: number | null;
-  sample_rate: number;
-  voice_running: boolean;
-  voice_starting?: boolean;
-  voice_error: string | null;
-  device: Record<string, string | boolean | number>;
-}
-
 export interface SensorHubStatus {
   enabled: boolean;
   connected: boolean;
@@ -113,6 +109,12 @@ export interface SensorHubStatus {
   last_error: string | null;
   emergency_stops: number;
   thread_alive: boolean;
+  protocol?: number | null;
+  distances_cm?: Record<string, number>;
+  yaw_degrees?: number | null;
+  yaw_axis?: string | null;
+  mpu_ok?: boolean;
+  telemetry_count?: number;
 }
 
 export interface TerminalStatus {
@@ -121,6 +123,158 @@ export interface TerminalStatus {
   max_sessions: number;
   idle_timeout_seconds: number;
   requires_tailscale_identity: boolean;
+}
+
+export interface EyeState {
+  expression: string;
+  gaze_x: number;
+  gaze_y: number;
+  blink: boolean;
+  source: string;
+  updated_at: number;
+  revision: number;
+}
+
+export interface EyesStatus {
+  ok?: boolean;
+  enabled: boolean;
+  connected: boolean;
+  width: number;
+  height: number;
+  state: EyeState;
+  last_error: string | null;
+}
+
+export interface FaceRecord {
+  face_id: string;
+  user_id: string;
+  name: string;
+  sample_count: number;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActiveFace {
+  face_id: string;
+  user_id: string;
+  name: string;
+  confidence: number;
+  box: number[];
+}
+
+export interface FaceStatus {
+  enabled: boolean;
+  enrolled: number;
+  active: ActiveFace | null;
+  recognition_threshold: number;
+  security_identity: boolean;
+}
+
+export interface FacesPayload {
+  ok: boolean;
+  faces: FaceRecord[];
+  active: ActiveFace | null;
+  status: FaceStatus;
+}
+
+export interface FollowStatus {
+  ok?: boolean;
+  enabled: boolean;
+  available?: boolean;
+  active: boolean;
+  started_at: number | null;
+  last_target_at: number | null;
+  last_error: string | null;
+}
+
+export interface VisionRuntimeStatus {
+  enabled: boolean;
+  running: boolean;
+  frame_sequence: number;
+  following_requested: boolean;
+  person_target: Record<string, unknown> | null;
+  last_error: string | null;
+}
+
+export interface SpeakerStatus {
+  enabled: boolean;
+  tts_configured: boolean;
+  output_device: string;
+  last_error: string | null;
+  busy?: boolean;
+  last_playback_at?: number | null;
+  last_played_file?: string | null;
+}
+
+export interface PhysicalVoiceStatus {
+  running: boolean;
+  error: string | null;
+  channels: number;
+  stt_engine: string;
+}
+
+export interface WorkflowRecord {
+  correlation_id: string;
+  source: string;
+  category: string;
+  started_at: number;
+  completed_at: number | null;
+  duration_ms: number | null;
+  ok: boolean | null;
+  error_code: string | null;
+  outputs: Record<string, string>;
+}
+
+export interface WorkflowStatus {
+  active: WorkflowRecord[];
+  recent: WorkflowRecord[];
+}
+
+export interface MotorRuntimeStatus {
+  running: boolean;
+  last_execution: Record<string, unknown> | null;
+}
+
+export interface SpotifyStatus {
+  enabled: boolean;
+  configured: boolean;
+  device_id_set: boolean;
+  device_name: string;
+  last_error: string | null;
+}
+
+export interface SoundDirectionStatus {
+  enabled: boolean;
+  last_estimate: { angle_degrees: number; side: string; confidence: number } | null;
+  last_error: string | null;
+  channels: { left: number; right: number };
+}
+
+export interface OdometryStatus {
+  enabled: boolean;
+  connected: boolean;
+  thread_alive: boolean;
+  device_path: string | null;
+  device_name: string | null;
+  pose: MapPose;
+  raw_counts: { x: number; y: number };
+  path_points: number;
+  last_motion_at: number | null;
+  last_yaw_at: number | null;
+  last_error: string | null;
+}
+
+export interface MapPose { x_m: number; y_m: number; yaw_deg: number; }
+export interface MapPoint extends MapPose { timestamp: number; }
+export interface MapPayload {
+  ok: boolean;
+  status: OdometryStatus;
+  pose: MapPose;
+  path: MapPoint[];
+  bounds: { min_x_m: number; max_x_m: number; min_y_m: number; max_y_m: number };
+  units: "meters";
+  quality: "dead_reckoning";
 }
 
 export interface ServiceResult<T = unknown> {
@@ -138,6 +292,21 @@ export interface EkoEvent {
   correlation_id: string | null;
 }
 
+export interface DebugLogEntry {
+  sequence: number;
+  timestamp: string;
+  level: string;
+  logger: string;
+  thread: string;
+  message: string;
+  exception: string | null;
+}
+
+export interface DebugLogsPayload {
+  logs: DebugLogEntry[];
+  latest_sequence: number;
+}
+
 export interface MemoryRecord {
   id: number;
   display_index: number;
@@ -152,7 +321,7 @@ export interface DriveVector { vx: number; vy: number; wz: number; }
 export interface MotionCommand { command: string; payload: Record<string, unknown>; monotonic_time: number; }
 export interface ControlStatus { settings: RuntimeSettings; recent_commands: MotionCommand[]; }
 export interface VisionSnapshot { ok: boolean; captured_at: number; mime_type: string; image_base64: string; }
-export interface TelemetryMessage { type: "telemetry"; sent_at: number; status: StatusPayload; events: EkoEvent[]; }
+export interface TelemetryMessage { type: "telemetry"; sent_at: number; status: StatusPayload; events: EkoEvent[]; logs?: DebugLogEntry[]; }
 
 export type ConfigFieldType = "boolean" | "integer" | "number" | "string" | "array";
 
@@ -229,9 +398,13 @@ export type EkoOperation =
   | "chat.history" | "chat.forget"
   | "message" | "command" | "drive" | "control" | "settings.get"
   | "settings.update" | "ai" | "vision.snapshot"
+  | "eyes.get" | "eyes.expression"
+  | "faces.list" | "faces.enroll" | "faces.delete"
+  | "follow.get" | "follow.start" | "follow.stop"
+  | "map.get" | "map.reset"
   | "config.list" | "config.update" | "config.batch"
   | "wifi.profiles" | "wifi.profiles.update"
-  | "mock.status" | "mock.sensors" | "terminal.status";
+  | "debug.logs" | "terminal.status";
 
 export interface ConnectionProfile {
   kind: TransportKind;
@@ -250,14 +423,6 @@ export interface LinkStats {
   latencyMs: number | null;
   lastUpdated: Date | null;
   error: string | null;
-}
-
-export interface MockMotion {
-  vx: number;
-  vy: number;
-  wz: number;
-  wheels: Record<string, number>;
-  receivedAt: number;
 }
 
 export const offlineState: RobotState = {

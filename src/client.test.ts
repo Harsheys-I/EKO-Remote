@@ -63,17 +63,30 @@ describe("EkoClient temporary CHAT operations", () => {
 
   it("applies all staged config files in one operation", async () => {
     const link = transport();
-    const changes = { "mock.yaml": { browser_camera_enabled: false } };
+    const changes = { "audio.yaml": { enabled: true } };
     await new EkoClient(link.value).applyConfigBatch(changes);
     expect(link.request).toHaveBeenCalledWith("config.batch", { changes, dry_run: false });
   });
 
-  it("uses dedicated mock-sensor and terminal status operations", async () => {
+  it("uses dedicated debug-log and terminal status operations", async () => {
     const link = transport();
     const client = new EkoClient(link.value);
-    await client.injectMockSensors({ y_axis_rotation_in_degree: 0 });
+    await client.debugLogs(250, 9);
     await client.terminalStatus();
-    expect(link.request).toHaveBeenCalledWith("mock.sensors", { readings: { y_axis_rotation_in_degree: 0 } });
+    expect(link.request).toHaveBeenCalledWith("debug.logs", { limit: 250, after: 9 });
     expect(link.request).toHaveBeenCalledWith("terminal.status");
+  });
+
+  it("uses dedicated perception, eye, follow, and map operations", async () => {
+    const link = transport();
+    const client = new EkoClient(link.value);
+    await client.eyes();
+    await client.enrollFace("Harshit");
+    await client.startFollowing();
+    await client.map();
+    expect(link.request).toHaveBeenCalledWith("eyes.get");
+    expect(link.request).toHaveBeenCalledWith("faces.enroll", { name: "Harshit" });
+    expect(link.request).toHaveBeenCalledWith("follow.start");
+    expect(link.request).toHaveBeenCalledWith("map.get");
   });
 });

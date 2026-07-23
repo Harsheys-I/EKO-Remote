@@ -23,7 +23,7 @@ class EkoAPI:
             headers["Authorization"] = f"Bearer {self.token}"
         request = Request(self.base_url + path, data=data, headers=headers, method=method)
         try:
-            timeout = 95 if operation in {"vision.snapshot", "message"} else 10
+            timeout = 95 if operation in {"vision.snapshot", "faces.enroll", "message"} else 10
             with urlopen(request, timeout=timeout) as response:
                 return json.load(response)
         except HTTPError as exc:
@@ -63,6 +63,26 @@ class EkoAPI:
             return "GET", path, None
         if operation == "vision.snapshot":
             return "POST", "/vision/snapshot", {}
+        if operation == "eyes.get":
+            return "GET", "/eyes", None
+        if operation == "eyes.expression":
+            return "POST", "/eyes/expression", payload
+        if operation == "faces.list":
+            return "GET", "/faces", None
+        if operation == "faces.enroll":
+            return "POST", "/faces/enroll", {"name": payload.get("name", "")}
+        if operation == "faces.delete":
+            return "DELETE", f"/faces/{quote(str(payload['face_id']))}", None
+        if operation == "follow.get":
+            return "GET", "/vision/follow", None
+        if operation == "follow.start":
+            return "POST", "/vision/follow/start", {}
+        if operation == "follow.stop":
+            return "POST", "/vision/follow/stop", {}
+        if operation == "map.get":
+            return "GET", "/map", None
+        if operation == "map.reset":
+            return "POST", "/map/reset", {}
         if operation == "config.list":
             return "GET", "/config", None
         if operation == "config.update":
@@ -76,10 +96,13 @@ class EkoAPI:
             return "GET", "/wifi/profiles", None
         if operation == "wifi.profiles.update":
             return "POST", "/wifi/profiles", {"profiles": payload.get("profiles", [])}
-        if operation == "mock.status":
-            return "GET", "/mock/status", None
-        if operation == "mock.sensors":
-            return "POST", "/mock/sensors", {"readings": payload.get("readings", {})}
+        if operation == "debug.logs":
+            return (
+                "GET",
+                f"/debug/logs?limit={int(payload.get('limit', 300))}"
+                f"&after={int(payload.get('after', 0))}",
+                None,
+            )
         if operation == "terminal.status":
             return "GET", "/terminal/status", None
         raise ValueError(f"Unsupported BLE operation: {operation}")

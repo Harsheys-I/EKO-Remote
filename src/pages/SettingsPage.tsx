@@ -35,7 +35,7 @@ export function SettingsPage({
     <Panel className="module-settings">
       <SectionHeading kicker="DEVICE MODULES" title="Current startup state" action={<Cpu size={19} />} />
       <div className="module-grid">
-        <article><Gauge size={20} /><div><strong>Motion hardware</strong><span>{settings?.hardware_enabled ? "Enabled" : "Safety locked"}</span></div></article>
+        <article><Gauge size={20} /><div><strong>Motor drivers</strong><span>{settings?.motors_enabled ? "Enabled" : "Not installed / locked"}</span></div></article>
         <article><Camera size={20} /><div><strong>Vision</strong><span>{settings?.vision_enabled ? "Enabled" : "Disabled"}</span></div></article>
         <article><AudioLines size={20} /><div><strong>Audio</strong><span>{settings?.audio_enabled ? "Enabled" : "Disabled"}</span></div></article>
       </div>

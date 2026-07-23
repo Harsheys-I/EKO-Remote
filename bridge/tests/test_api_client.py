@@ -60,7 +60,7 @@ class APIClientTests(unittest.TestCase):
             "config.batch",
             {"changes": {"sensors.yaml": {"distance_threshold_cm": 30}}, "dry_run": True},
         )
-        self.api.request("mock.status")
+        self.api.request("debug.logs", {"limit": 12, "after": 120})
         self.api.request("terminal.status")
         self.assertEqual(Handler.calls[0], {"method": "POST", "path": "/message", "body": {"text": "hello"}, "authorization": "Bearer secret"})
         self.assertEqual(Handler.calls[1]["method"], "DELETE")
@@ -83,12 +83,25 @@ class APIClientTests(unittest.TestCase):
         )
         self.assertEqual(Handler.calls[9]["path"], "/config/batch")
         self.assertEqual(Handler.calls[9]["body"]["dry_run"], True)
-        self.assertEqual(Handler.calls[10]["path"], "/mock/status")
+        self.assertEqual(Handler.calls[10]["path"], "/debug/logs?limit=12&after=120")
         self.assertEqual(Handler.calls[11]["path"], "/terminal/status")
 
     def test_unknown_operation_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unsupported BLE operation"):
             self.api.request("not.real")
+
+    def test_v050_perception_eye_follow_and_map_routes(self) -> None:
+        self.assertEqual(EkoAPI._route("eyes.get", {}), ("GET", "/eyes", None))
+        self.assertEqual(
+            EkoAPI._route("faces.enroll", {"name": "Harshit"}),
+            ("POST", "/faces/enroll", {"name": "Harshit"}),
+        )
+        self.assertEqual(
+            EkoAPI._route("faces.delete", {"face_id": "a" * 24}),
+            ("DELETE", "/faces/" + "a" * 24, None),
+        )
+        self.assertEqual(EkoAPI._route("follow.start", {}), ("POST", "/vision/follow/start", {}))
+        self.assertEqual(EkoAPI._route("map.get", {}), ("GET", "/map", None))
 
 
 if __name__ == "__main__":

@@ -71,13 +71,22 @@ export class WifiTransport extends TransportBase implements EkoTransport {
       case "settings.update": return { path: "/settings", method: "POST", body: payload };
       case "ai": return { path: "/ai" };
       case "vision.snapshot": return { path: "/vision/snapshot", method: "POST", body: {} };
+      case "eyes.get": return { path: "/eyes" };
+      case "eyes.expression": return { path: "/eyes/expression", method: "POST", body: payload };
+      case "faces.list": return { path: "/faces" };
+      case "faces.enroll": return { path: "/faces/enroll", method: "POST", body: { name: payload.name } };
+      case "faces.delete": return { path: `/faces/${encodeURIComponent(String(payload.face_id))}`, method: "DELETE" };
+      case "follow.get": return { path: "/vision/follow" };
+      case "follow.start": return { path: "/vision/follow/start", method: "POST", body: {} };
+      case "follow.stop": return { path: "/vision/follow/stop", method: "POST", body: {} };
+      case "map.get": return { path: "/map" };
+      case "map.reset": return { path: "/map/reset", method: "POST", body: {} };
       case "config.list": return { path: "/config" };
       case "config.update": return { path: `/config/${encodeURIComponent(String(payload.name))}`, method: "POST", body: { values: payload.values } };
       case "config.batch": return { path: "/config/batch", method: "POST", body: { changes: payload.changes, dry_run: payload.dry_run } };
       case "wifi.profiles": return { path: "/wifi/profiles" };
       case "wifi.profiles.update": return { path: "/wifi/profiles", method: "POST", body: { profiles: payload.profiles } };
-      case "mock.status": return { path: "/mock/status" };
-      case "mock.sensors": return { path: "/mock/sensors", method: "POST", body: { readings: payload.readings } };
+      case "debug.logs": return { path: `/debug/logs?limit=${encodeURIComponent(String(payload.limit ?? 300))}&after=${encodeURIComponent(String(payload.after ?? 0))}` };
       case "terminal.status": return { path: "/terminal/status" };
     }
   }

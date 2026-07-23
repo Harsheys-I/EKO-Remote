@@ -4,13 +4,12 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import type { EkoClient } from "../client";
 import { EmptyState, Panel, SectionHeading } from "../components/Common";
 import { gamepadVectorSignature, readGamepadVector } from "../gamepad";
-import type { MockHardwareController } from "../hooks/useMockHardware";
-import type { ControlStatus, DriveVector, LinkStats, MockMotion, RobotState, RuntimeSettings } from "../types";
+import type { ControlStatus, DriveVector, LinkStats, RobotState, RuntimeSettings } from "../types";
 
 const keyVectors: Record<string, DriveVector> = { w: { vx: 0, vy: 1, wz: 0 }, ArrowUp: { vx: 0, vy: 1, wz: 0 }, s: { vx: 0, vy: -1, wz: 0 }, ArrowDown: { vx: 0, vy: -1, wz: 0 }, a: { vx: -1, vy: 0, wz: 0 }, ArrowLeft: { vx: -1, vy: 0, wz: 0 }, d: { vx: 1, vy: 0, wz: 0 }, ArrowRight: { vx: 1, vy: 0, wz: 0 }, q: { vx: 0, vy: 0, wz: -1 }, e: { vx: 0, vy: 0, wz: 1 } };
 const controlKeys = [{ key: "w", label: "W", icon: ArrowUp, alternate: "ArrowUp" }, { key: "q", label: "Q", icon: RotateCcw }, { key: "e", label: "E", icon: RotateCw }, { key: "a", label: "A", icon: ArrowLeft, alternate: "ArrowLeft" }, { key: "s", label: "S", icon: ArrowDown, alternate: "ArrowDown" }, { key: "d", label: "D", icon: ArrowRight, alternate: "ArrowRight" }];
 
-function RobotSimulator({ motion, mock }: { motion: MockMotion | DriveVector; mock: boolean }) {
+function RobotSimulator({ motion }: { motion: DriveVector }) {
   const [pose, setPose] = useState({ x: 50, y: 50, angle: 0, trail: [] as Array<{ x: number; y: number }> });
   const motionRef = useRef(motion);
   const lastRef = useRef(performance.now());
@@ -22,10 +21,9 @@ function RobotSimulator({ motion, mock }: { motion: MockMotion | DriveVector; mo
       const dt = Math.min(0.05, (now - lastRef.current) / 1000);
       lastRef.current = now;
       const value = motionRef.current;
-      const stale = "receivedAt" in value && now - value.receivedAt > 900;
-      const vx = stale ? 0 : value.vx;
-      const vy = stale ? 0 : value.vy;
-      const wz = stale ? 0 : value.wz;
+      const vx = value.vx;
+      const vy = value.vy;
+      const wz = value.wz;
       setPose((current) => {
         const radians = current.angle * Math.PI / 180;
         const scale = 24;
@@ -44,11 +42,18 @@ function RobotSimulator({ motion, mock }: { motion: MockMotion | DriveVector; mo
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
   }, []);
-  const wheels = "wheels" in motion ? motion.wheels : {};
-  return <div className="robot-simulator"><header><span><Radar size={16} />{mock ? "Pi-accepted robot motion" : "Controller vector preview"}</span><button className="text-button" onClick={() => setPose({ x: 50, y: 50, angle: 0, trail: [] })}>Recenter</button></header><div className="sim-field"><span className="sim-grid" />{pose.trail.map((point, index) => <i className="trail-dot" key={index} style={{ left: `${point.x}%`, top: `${point.y}%`, opacity: (index + 4) / (pose.trail.length + 4) }} />)}<div className="sim-robot" style={{ left: `${pose.x}%`, top: `${pose.y}%`, transform: `translate(-50%, -50%) rotate(${pose.angle}deg)` }}><i className="heading" /><span className="wheel fl" /><span className="wheel fr" /><span className="wheel rl" /><span className="wheel rr" /><strong>EKO</strong></div></div><div className="wheel-readout">{["front_left", "front_right", "rear_left", "rear_right"].map((name) => <span key={name}><small>{name.replace("front_", "F").replace("rear_", "R").replace("left", "L").replace("right", "R")}</small><i><b style={{ width: `${Math.abs(Number(wheels[name] ?? 0)) * 100}%` }} /></i><strong>{Number(wheels[name] ?? 0).toFixed(2)}</strong></span>)}</div></div>;
+  const rawWheels: Record<string, number> = {
+    front_left: motion.vy + motion.vx - motion.wz,
+    front_right: motion.vy - motion.vx + motion.wz,
+    rear_left: motion.vy - motion.vx - motion.wz,
+    rear_right: motion.vy + motion.vx + motion.wz,
+  };
+  const scale = Math.max(1, ...Object.values(rawWheels).map(Math.abs));
+  const wheels = Object.fromEntries(Object.entries(rawWheels).map(([name, value]) => [name, value / scale]));
+  return <div className="robot-simulator"><header><span><Radar size={16} />Controller vector preview</span><button className="text-button" onClick={() => setPose({ x: 50, y: 50, angle: 0, trail: [] })}>Recenter</button></header><div className="sim-field"><span className="sim-grid" />{pose.trail.map((point, index) => <i className="trail-dot" key={index} style={{ left: `${point.x}%`, top: `${point.y}%`, opacity: (index + 4) / (pose.trail.length + 4) }} />)}<div className="sim-robot" style={{ left: `${pose.x}%`, top: `${pose.y}%`, transform: `translate(-50%, -50%) rotate(${pose.angle}deg)` }}><i className="heading" /><span className="wheel fl" /><span className="wheel fr" /><span className="wheel rl" /><span className="wheel rr" /><strong>EKO</strong></div></div><div className="wheel-readout">{["front_left", "front_right", "rear_left", "rear_right"].map((name) => <span key={name}><small>{name.replace("front_", "F").replace("rear_", "R").replace("left", "L").replace("right", "R")}</small><i><b style={{ width: `${Math.abs(Number(wheels[name] ?? 0)) * 100}%` }} /></i><strong>{Number(wheels[name] ?? 0).toFixed(2)}</strong></span>)}</div></div>;
 }
 
-export function DrivePage({ client, state, settings, stats, mock, onSettings }: { client: EkoClient | null; state: RobotState; settings: RuntimeSettings | null; stats: LinkStats; mock: MockHardwareController; onSettings: (settings: RuntimeSettings) => void }) {
+export function DrivePage({ client, state, settings, stats, onSettings }: { client: EkoClient | null; state: RobotState; settings: RuntimeSettings | null; stats: LinkStats; onSettings: (settings: RuntimeSettings) => void }) {
   const [pressed, setPressed] = useState<Set<string>>(new Set());
   const [stick, setStick] = useState({ x: 0, y: 0 });
   const [control, setControl] = useState<ControlStatus | null>(null);
@@ -56,7 +61,7 @@ export function DrivePage({ client, state, settings, stats, mock, onSettings }: 
   const [gamepadName, setGamepadName] = useState<string | null>(null);
   const [gamepadVector, setGamepadVector] = useState<DriveVector>({ vx: 0, vy: 0, wz: 0 });
   const pointerActive = useRef(false);
-  const hardwareReady = Boolean(client && settings?.control_mode !== "stationary" && stats.connected && (settings?.hardware_enabled || (settings?.mock_mode && mock.active)));
+  const hardwareReady = Boolean(client && settings?.control_mode !== "stationary" && stats.connected && settings?.hardware_enabled && settings?.motors_enabled);
   const vector = useMemo(() => { const value = { vx: stick.x + gamepadVector.vx, vy: -stick.y + gamepadVector.vy, wz: gamepadVector.wz }; pressed.forEach((key) => { const next = keyVectors[key]; if (next) { value.vx += next.vx; value.vy += next.vy; value.wz += next.wz; } }); return { vx: Math.max(-1, Math.min(1, value.vx)), vy: Math.max(-1, Math.min(1, value.vy)), wz: Math.max(-1, Math.min(1, value.wz)) }; }, [gamepadVector, pressed, stick]);
   const sendVector = useCallback(async (next: DriveVector) => { if (!client) return; try { await client.drive(next); setError(null); } catch (cause) { setError(cause instanceof Error ? cause.message : "Drive command failed"); } }, [client]);
 
@@ -108,10 +113,10 @@ export function DrivePage({ client, state, settings, stats, mock, onSettings }: 
   const pointerMove = (event: ReactPointerEvent<HTMLDivElement>) => { if (!pointerActive.current) return; const box = event.currentTarget.getBoundingClientRect(); const x = (event.clientX - box.left - box.width / 2) / (box.width / 2); const y = (event.clientY - box.top - box.height / 2) / (box.height / 2); const length = Math.max(1, Math.hypot(x, y)); setStick({ x: x / length, y: y / length }); };
   const releasePointer = () => { pointerActive.current = false; setStick({ x: 0, y: 0 }); };
 
-  return <div className="page-grid drive-page">{!hardwareReady && <div className="safety-banner"><ShieldAlert size={20} /><div><strong>Movement controls are locked</strong><span>{!stats.connected ? "Connect to EKO before driving." : settings?.control_mode === "stationary" ? "Stationary mode is active. Select manual or assist to move." : !settings?.hardware_enabled && !mock.active ? "Turn on Mock hardware in the top bar, or acknowledge physical hardware in Config and restart EKO." : "The browser hardware channel is not ready."}</span></div></div>}
+  return <div className="page-grid drive-page">{!hardwareReady && <div className="safety-banner"><ShieldAlert size={20} /><div><strong>Movement controls are locked</strong><span>{!stats.connected ? "Connect to EKO before driving." : settings?.control_mode === "stationary" ? "Stationary mode is active. Select manual or assist to move." : !settings?.hardware_enabled ? "Physical hardware is disabled in Config." : !settings?.motors_enabled ? "Motor drivers are intentionally disabled until both TB6612FNG boards and all four motors are installed." : "The physical motor service is not ready."}</span></div></div>}
     <Panel className="drive-panel"><SectionHeading kicker="LIVE CONTROLLER" title="Holonomic drive" action={<span className={`motion-badge ${state.moving ? "moving" : ""}`}><i />{state.moving ? "Moving" : "Stopped"}</span>} /><div className="drive-workspace"><div className="joystick" onPointerDown={(event) => { pointerActive.current = true; event.currentTarget.setPointerCapture(event.pointerId); pointerMove(event); }} onPointerMove={pointerMove} onPointerUp={releasePointer} onPointerCancel={releasePointer}><span className="axis horizontal" /><span className="axis vertical" /><div className="joystick-knob" style={{ transform: `translate(calc(-50% + ${stick.x * 72}px), calc(-50% + ${stick.y * 72}px))` }}><Gamepad2 size={22} /></div></div><div className="keypad">{controlKeys.map(({ key, label, icon: Icon, alternate }) => <button type="button" key={key} className={pressed.has(key) || Boolean(alternate && pressed.has(alternate)) ? "active" : ""} onPointerDown={(event) => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); pressKey(key); }} onPointerUp={() => releaseKey(key)} onPointerCancel={() => releaseKey(key)} onContextMenu={(event) => event.preventDefault()}><Icon /><kbd>{label}</kbd></button>)}</div></div><div className="vector-readout"><span>VX <strong>{vector.vx.toFixed(2)}</strong></span><span>VY <strong>{vector.vy.toFixed(2)}</strong></span><span>WZ <strong>{vector.wz.toFixed(2)}</strong></span></div>{error && <p className="inline-error">{error}</p>}</Panel>
     <Panel className="drive-profile"><SectionHeading kicker="DRIVE PROFILE" title="Mode & limits" action={stats.kind === "ble" ? <Bluetooth size={18} /> : <Wifi size={18} />} /><div className="mode-selector">{(["manual", "assist", "stationary"] as const).map((mode) => <button key={mode} className={settings?.control_mode === mode ? "selected" : ""} onClick={() => void update({ control_mode: mode })}><strong>{mode}</strong><span>{mode === "manual" ? "Direct operator input" : mode === "assist" ? "Reduced response" : "Lock all motion"}</span></button>)}</div><label className="range-control"><div><span>Robot speed limit</span><strong>{Math.round((settings?.speed_limit ?? .45) * 100)}%</strong></div><input type="range" min="5" max="100" value={(settings?.speed_limit ?? .45) * 100} onChange={(event) => settings && onSettings({ ...settings, speed_limit: Number(event.target.value) / 100 })} onPointerUp={(event) => void update({ speed_limit: Number(event.currentTarget.value) / 100 })} onKeyUp={(event) => void update({ speed_limit: Number(event.currentTarget.value) / 100 })} /></label><div className={`gamepad-status ${gamepadName ? "connected" : ""}`}><Gamepad2 size={18} /><span><strong>{gamepadName ? "Gamepad connected" : "Gamepad auto-detect"}</strong><small>{!("getGamepads" in navigator) ? "This browser does not support gamepads" : gamepadName ?? "Press any controller button — no software pairing step"}</small></span><i /></div><p className="gamepad-map">Left stick: strafe / drive · L1/R1: rotate</p><button className="emergency-button" onClick={() => void stop()} disabled={!stats.connected}><CircleStop size={20} />Emergency stop</button><p className="watchdog-note">Commands repeat while input is held. If Wi-Fi, BLE, this tab, or the controller fails, EKO's 750 ms robot-side watchdog stops the motors.</p></Panel>
-    <Panel className="simulator-panel"><SectionHeading kicker="KINEMATICS" title="Top-down drivetrain twin" action={<Gamepad2 size={18} />} /><RobotSimulator motion={mock.active ? mock.motion : vector} mock={mock.active} />{mock.active && <div className="mock-sensor-tools"><span>Safety simulation</span><button onClick={() => mock.sendSensorReadings({ y_axis_rotation_in_degree: 0 })}>Clear sample</button><button className="danger" onClick={() => mock.sendSensorReadings({ f: 1, l: 100, b: 100, r: 100, fd: 100, fl: 100, fb: 100, fr: 100, y_axis_rotation_in_degree: 0 })}>Inject front obstacle</button></div>}</Panel>
+    <Panel className="simulator-panel"><SectionHeading kicker="KINEMATICS" title="Top-down drivetrain preview" action={<Gamepad2 size={18} />} /><RobotSimulator motion={vector} /></Panel>
     <Panel className="command-history"><SectionHeading kicker="ROBOT ACKNOWLEDGEMENTS" title="Recent motion" action={<History size={18} />} />{control?.recent_commands.length ? <div className="command-list">{control.recent_commands.slice(0, 12).map((command, index) => <article key={`${command.monotonic_time}-${index}`}><span>{command.command}</span><code>{JSON.stringify(command.payload)}</code></article>)}</div> : <EmptyState icon={History} title="No drive history" message="Accepted motion commands will appear here." />}</Panel>
   </div>;
 }

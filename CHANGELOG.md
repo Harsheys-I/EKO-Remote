@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.0.0
+
+- Removed browser Mock Mode, its media bridge, mock sensor injection, and all mock UI controls.
+- Added a persistent top-bar Debug Mode switch and a right-side live structured Pi log stream.
+- Added sequence-based log catch-up and deduplication over HTTPS/WSS and BLE.
+- Added level filtering, pause/resume, clear, connection state, and concurrent workflow state to the debug rail.
+- Kept the dual 128x64 eye rail as the normal view when Debug Mode is off.
+- Made Vision physical-camera-only and kept person-follow movement unavailable until motor drivers exist.
+- Made Dashboard, Drive, and Settings reflect the independent motor-driver lock.
+- Preserved automatic Gamepad API discovery and all robot-side safety behavior.
+
+## 0.5.0
+
+- Added a sticky right-side EKO face rail with two separately rendered 128×64 eye screens driven by the same expression, gaze, blink, source, active-face, OLED-link, and sound-angle state as the Pi.
+- Expanded Vision with local face enrollment/list/delete, active identity, explicit cloud snapshot policy, OpenCV runtime telemetry, and safety-bounded follow start/stop controls.
+- Added House Map with a live meter-scaled optical-mouse trail, MPU heading marker, device/fusion status, dead-reckoning warning, polling, and confirmed reset.
+- Added typed Wi-Fi and BLE operations for eyes, faces, following, and map data, including long-request handling for enrollment and bridge routing tests.
+- Preserved the global Mock hardware switch, user-gesture one-shot browser camera, automatic gamepad discovery, and every v0.4.2 safety behavior.
+
+## 0.4.2
+
+- Prepared the browser camera directly from the Vision capture button's user gesture before asking the Pi for its matching frame, fixing delayed permission and media-playback failures on stricter desktop and mobile browsers.
+- Kept AI CAMERA requests lazy while centralizing stream startup, bounded JPEG generation, session checks, timeout cleanup, and track shutdown in a tested one-shot camera adapter.
+- Ensured success, permission denial, frame failure, HTTP failure, timeout, Mock-mode disable, and component cleanup all stop the camera without closing the Mock hardware WebSocket.
+- Added four browser-camera lifecycle simulations and raised the verified Remote test count to 16.
+
 ## 0.4.1
 
 - Moved the Mock hardware master switch into the global top bar so it is available on every page.

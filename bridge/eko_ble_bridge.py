@@ -39,6 +39,7 @@ class EkoBleBridge:
         self.send_lock = asyncio.Lock()
         self.running = False
         self.logger = logging.getLogger("eko.ble")
+        self.last_log_sequence = 0
 
     async def start(self) -> None:
         self.server.write_request_func = self._write_request
@@ -126,14 +127,40 @@ class EkoBleBridge:
     async def _telemetry_loop(self) -> None:
         while self.running:
             try:
-                status, events = await asyncio.gather(
+                status, events, logs = await asyncio.gather(
                     asyncio.to_thread(self.api.request, "health", {}),
                     asyncio.to_thread(self.api.request, "events", {"limit": 30}),
+                    asyncio.to_thread(
+                        self.api.request,
+                        "debug.logs",
+                        {"limit": 12, "after": self.last_log_sequence},
+                    ),
                 )
+                records = [
+                    {
+                        **record,
+                        "message": str(record.get("message", ""))[:700],
+                        "exception": (
+                            str(record["exception"])[:1200]
+                            if record.get("exception")
+                            else None
+                        ),
+                    }
+                    for record in logs.get("logs", [])
+                    if isinstance(record, dict)
+                ]
+                if records:
+                    self.last_log_sequence = int(records[-1]["sequence"])
                 await self._send(
                     FrameKind.TELEMETRY,
                     0,
-                    {"type": "telemetry", "sent_at": __import__("time").time(), "status": status, "events": events.get("events", [])},
+                    {
+                        "type": "telemetry",
+                        "sent_at": __import__("time").time(),
+                        "status": status,
+                        "events": events.get("events", []),
+                        "logs": records,
+                    },
                 )
             except Exception as exc:
                 self.logger.debug("BLE telemetry unavailable: %s", exc)

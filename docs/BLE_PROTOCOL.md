@@ -61,7 +61,7 @@ or:
 
 ## Operations
 
-`health`, `events`, `memories`, `memory.remember`, `memory.forget`, `chat.history`, `chat.forget`, `message`, `command`, `drive`, `control`, `settings.get`, `settings.update`, `ai`, `vision.snapshot`, `config.list`, `config.update`, `config.batch`, `wifi.profiles`, `wifi.profiles.update`, `mock.status`, `mock.sensors`, and `terminal.status` map directly to EKO's v0.4.1 control API.
+`health`, `events`, `debug.logs`, `memories`, `memory.remember`, `memory.forget`, `chat.history`, `chat.forget`, `message`, `command`, `drive`, `control`, `settings.get`, `settings.update`, `ai`, `vision.snapshot`, `eyes.get`, `eyes.expression`, `faces.list`, `faces.enroll`, `faces.delete`, `follow.get`, `follow.start`, `follow.stop`, `map.get`, `map.reset`, `config.list`, `config.update`, `config.batch`, `wifi.profiles`, `wifi.profiles.update`, and `terminal.status` map directly to EKO's v1.0.0 control API.
 
 The browser media stream and PTY byte stream are deliberately WSS-only. BLE can read their policy
 or status and can inject a bounded debug sensor payload, but it does not transport PCM, JPEGs,
@@ -86,7 +86,7 @@ The browser deduplicates events by timestamp, name, and correlation ID.
 
 - Maximum payload is 65,535 × 172 bytes.
 - Incomplete assemblies expire after 30 seconds.
-- Normal requests time out in the browser after 12 seconds; snapshots allow 90 seconds.
+- Normal requests time out in the browser after 12 seconds; snapshots, face enrollment, and AI messages allow 90 seconds.
 - GATT writes are serialized.
 - Malformed frames are discarded.
 - If a connection fails during motion, the browser stops sending and the robot watchdog stops EKO.

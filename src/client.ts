@@ -1,4 +1,4 @@
-import type { ConfigBatchPayload, ConfigListPayload, ConfigSavePayload, ControlStatus, DriveVector, EkoEvent, MemoryRecord, MockHardwareStatus, RuntimeSettings, SensorHubStatus, ServiceResult, StatusPayload, TemporaryChatStatus, TerminalStatus, VisionSnapshot, WifiProfilesPayload, WifiRecoveryProfileDraft } from "./types";
+import type { ConfigBatchPayload, ConfigListPayload, ConfigSavePayload, ControlStatus, DebugLogsPayload, DriveVector, EkoEvent, EyesStatus, FacesPayload, FollowStatus, MapPayload, MemoryRecord, RuntimeSettings, ServiceResult, StatusPayload, TemporaryChatStatus, TerminalStatus, VisionSnapshot, WifiProfilesPayload, WifiRecoveryProfileDraft } from "./types";
 
 export class EkoClient {
   constructor(readonly transport: import("./transports/Transport").EkoTransport) {}
@@ -17,14 +17,23 @@ export class EkoClient {
   updateSettings(changes: Partial<RuntimeSettings>) { return this.transport.request<RuntimeSettings>("settings.update", changes as Record<string, unknown>); }
   ai() { return this.transport.request<StatusPayload["ai"]>("ai"); }
   snapshot() { return this.transport.request<VisionSnapshot>("vision.snapshot"); }
+  eyes() { return this.transport.request<EyesStatus>("eyes.get"); }
+  setEyeExpression(expression: string, holdSeconds = 2) { return this.transport.request<EyesStatus>("eyes.expression", { expression, hold_seconds: holdSeconds }); }
+  faces() { return this.transport.request<FacesPayload>("faces.list"); }
+  enrollFace(name: string) { return this.transport.request<{ ok: boolean; face: FacesPayload["faces"][number] }>("faces.enroll", { name }); }
+  deleteFace(faceId: string) { return this.transport.request<{ ok: boolean; face_id: string }>("faces.delete", { face_id: faceId }); }
+  followStatus() { return this.transport.request<FollowStatus>("follow.get"); }
+  startFollowing() { return this.transport.request<ServiceResult>("follow.start"); }
+  stopFollowing() { return this.transport.request<ServiceResult>("follow.stop"); }
+  map() { return this.transport.request<MapPayload>("map.get"); }
+  resetMap() { return this.transport.request<MapPayload>("map.reset"); }
   configFiles() { return this.transport.request<ConfigListPayload>("config.list"); }
   updateConfig(name: string, values: Record<string, unknown>) { return this.transport.request<ConfigSavePayload>("config.update", { name, values }); }
   validateConfigBatch(changes: Record<string, Record<string, unknown>>) { return this.transport.request<ConfigBatchPayload>("config.batch", { changes, dry_run: true }); }
   applyConfigBatch(changes: Record<string, Record<string, unknown>>) { return this.transport.request<ConfigBatchPayload>("config.batch", { changes, dry_run: false }); }
   wifiProfiles() { return this.transport.request<WifiProfilesPayload>("wifi.profiles"); }
   updateWifiProfiles(profiles: WifiRecoveryProfileDraft[]) { return this.transport.request<WifiProfilesPayload>("wifi.profiles.update", { profiles }); }
-  mockStatus() { return this.transport.request<MockHardwareStatus>("mock.status"); }
-  injectMockSensors(readings: Record<string, number>) { return this.transport.request<{ ok: boolean } & SensorHubStatus>("mock.sensors", { readings }); }
+  debugLogs(limit = 300, after = 0) { return this.transport.request<DebugLogsPayload>("debug.logs", { limit, after }); }
   terminalStatus() { return this.transport.request<TerminalStatus>("terminal.status"); }
   stop() { return this.transport.emergencyStop(); }
 }

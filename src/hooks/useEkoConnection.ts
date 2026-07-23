@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EkoClient } from "../client";
+import { mergeDebugLogs } from "../debugLogs";
 import { BleTransport } from "../transports/BleTransport";
 import type { EkoTransport } from "../transports/Transport";
 import { WifiTransport } from "../transports/WifiTransport";
-import type { ConnectionProfile, EkoEvent, LinkStats, RuntimeSettings, StatusPayload, TelemetryMessage } from "../types";
+import type { ConnectionProfile, DebugLogEntry, EkoEvent, LinkStats, RuntimeSettings, StatusPayload, TelemetryMessage } from "../types";
 
 const PROFILE_KEY = "eko-remote-connection-v1";
 const defaultProfile: ConnectionProfile = {
@@ -12,7 +13,7 @@ const defaultProfile: ConnectionProfile = {
   wifiToken: "",
   bleToken: "",
   bleDeviceId: "",
-  autoReconnect: true,
+  autoReconnect: false,
 };
 
 function readProfile(): ConnectionProfile {
@@ -26,11 +27,13 @@ export function useEkoConnection() {
   const [profile, setProfile] = useState<ConnectionProfile>(readProfile);
   const [status, setStatus] = useState<StatusPayload | null>(null);
   const [events, setEvents] = useState<EkoEvent[]>([]);
+  const [logs, setLogs] = useState<DebugLogEntry[]>([]);
   const [client, setClient] = useState<EkoClient | null>(null);
   const [stats, setStats] = useState<LinkStats>({ connected: false, connecting: false, kind: null, label: "No link", latencyMs: null, lastUpdated: null, error: null });
   const transportRef = useRef<EkoTransport | null>(null);
   const autoAttempted = useRef(false);
   const pollFailures = useRef(0);
+  const lastLogSequence = useRef(0);
 
   const mergeEvents = useCallback((incoming: EkoEvent[]) => {
     setEvents((current) => {
@@ -40,7 +43,12 @@ export function useEkoConnection() {
   }, []);
 
   const receiveTelemetry = useCallback((message: TelemetryMessage) => {
-    setStatus(message.status); mergeEvents(message.events);
+    setStatus(message.status);
+    mergeEvents(message.events);
+    if (message.logs?.length) {
+      lastLogSequence.current = Math.max(lastLogSequence.current, message.logs.at(-1)?.sequence ?? 0);
+      setLogs((current) => mergeDebugLogs(current, message.logs ?? []));
+    }
     setStats((current) => ({ ...current, connected: true, connecting: false, latencyMs: Math.max(0, Math.round(Date.now() - message.sent_at * 1000)), lastUpdated: new Date(), error: null }));
   }, [mergeEvents]);
 
@@ -60,6 +68,8 @@ export function useEkoConnection() {
     let transport: EkoTransport | null = null;
     const started = performance.now();
     try {
+      setLogs([]);
+      lastLogSequence.current = 0;
       transport = nextProfile.kind === "wifi"
         ? new WifiTransport(nextProfile.wifiUrl, nextProfile.wifiToken)
         : new BleTransport(nextProfile.bleDeviceId, nextProfile.bleToken);
@@ -89,9 +99,18 @@ export function useEkoConnection() {
     if (!client) return;
     const started = performance.now();
     try {
-      const [nextStatus, eventPayload] = await Promise.all([client.health(), client.events(100)]);
+      const [nextStatus, eventPayload, logPayload] = await Promise.all([
+        client.health(),
+        client.events(100),
+        client.debugLogs(300, lastLogSequence.current),
+      ]);
       pollFailures.current = 0;
-      setStatus(nextStatus); mergeEvents(eventPayload.events);
+      setStatus(nextStatus);
+      mergeEvents(eventPayload.events);
+      if (logPayload.logs.length) {
+        lastLogSequence.current = Math.max(lastLogSequence.current, logPayload.latest_sequence);
+        setLogs((current) => mergeDebugLogs(current, logPayload.logs));
+      }
       setStats((current) => ({ ...current, connected: true, latencyMs: Math.round(performance.now() - started), lastUpdated: new Date(), error: null }));
     } catch (cause) {
       pollFailures.current += 1;
@@ -113,5 +132,5 @@ export function useEkoConnection() {
     return () => window.clearInterval(interval);
   }, [client, refresh, stats.kind]);
 
-  return { profile, status, events, client, stats, connect, disconnect, refresh, applySettings, bleSupported: Boolean(navigator.bluetooth) };
+  return { profile, status, events, logs, client, stats, connect, disconnect, refresh, applySettings, bleSupported: Boolean(navigator.bluetooth) };
 }

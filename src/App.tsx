@@ -1,15 +1,17 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { ConnectionDialog } from "./components/ConnectionDialog";
+import { DebugDock } from "./components/DebugDock";
+import { EyeDock } from "./components/EyeDock";
 import { Sidebar, Topbar } from "./components/Shell";
 import type { ViewId } from "./components/Shell";
 import { useEkoConnection } from "./hooks/useEkoConnection";
-import { useMockHardware } from "./hooks/useMockHardware";
 import { AIPage } from "./pages/AIPage";
 import { ConfigPage } from "./pages/ConfigPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DrivePage } from "./pages/DrivePage";
 import { LogsPage } from "./pages/LogsPage";
 import { MemoryPage } from "./pages/MemoryPage";
+import { MapPage } from "./pages/MapPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VisionPage } from "./pages/VisionPage";
 import { offlineState } from "./types";
@@ -17,6 +19,7 @@ import { offlineState } from "./types";
 const TerminalPage = lazy(() =>
   import("./pages/TerminalPage").then((module) => ({ default: module.TerminalPage })),
 );
+const DEBUG_KEY = "eko-remote-debug-v1";
 
 const views = new Set<ViewId>([
   "dashboard",
@@ -24,6 +27,7 @@ const views = new Set<ViewId>([
   "ai",
   "vision",
   "memory",
+  "map",
   "logs",
   "config",
   "terminal",
@@ -38,8 +42,8 @@ const fromHash = (): ViewId => {
 export default function App() {
   const [view, setView] = useState<ViewId>(fromHash);
   const [showConnection, setShowConnection] = useState(false);
+  const [debugEnabled, setDebugEnabled] = useState(() => window.localStorage.getItem(DEBUG_KEY) === "true");
   const connection = useEkoConnection();
-  const mock = useMockHardware(connection.client, connection.profile, connection.stats, connection.applySettings);
 
   useEffect(() => {
     const sync = () => setView(fromHash());
@@ -78,27 +82,31 @@ export default function App() {
     window.location.reload();
   };
   const state = connection.status?.state ?? offlineState;
-  const voiceError = mock.active ? connection.status?.capability_status?.mock?.voice_error : null;
-  const hardwareNotice = mock.error || mock.warning || (voiceError ? `Pi audio pipeline: ${voiceError}` : null);
+  const setDebug = (enabled: boolean) => {
+    setDebugEnabled(enabled);
+    window.localStorage.setItem(DEBUG_KEY, String(enabled));
+  };
 
   return <div className="app-shell">
     <Sidebar view={view} stats={connection.stats} onNavigate={navigate} />
     <main className="main-shell">
-      <Topbar view={view} state={state} stats={connection.stats} mock={mock} onConnect={() => setShowConnection(true)} onDisconnect={() => void connection.disconnect()} onRefresh={() => void connection.refresh()} onStop={() => void stop()} />
-      {hardwareNotice && <div className={`hardware-bridge-notice ${mock.error || voiceError ? "error" : "warning"}`} role="status"><strong>{mock.error ? "Browser hardware disconnected" : voiceError ? "Pi audio pipeline unavailable" : "Browser hardware notice"}</strong><span>{hardwareNotice}</span></div>}
+      <Topbar view={view} state={state} stats={connection.stats} debugEnabled={debugEnabled} onDebugEnabled={setDebug} onConnect={() => setShowConnection(true)} onDisconnect={() => void connection.disconnect()} onRefresh={() => void connection.refresh()} onStop={() => void stop()} />
       <div className="page-content">
         {view === "dashboard" && <DashboardPage status={connection.status} events={connection.events} stats={connection.stats} onNavigate={navigate} onConnect={() => setShowConnection(true)} />}
-        {view === "drive" && <DrivePage client={connection.client} state={state} settings={connection.status?.settings ?? null} stats={connection.stats} mock={mock} onSettings={connection.applySettings} />}
+        {view === "drive" && <DrivePage client={connection.client} state={state} settings={connection.status?.settings ?? null} stats={connection.stats} onSettings={connection.applySettings} />}
         {view === "ai" && <AIPage client={connection.client} status={connection.status} events={connection.events} stats={connection.stats} onSettings={connection.applySettings} />}
         {view === "vision" && <VisionPage client={connection.client} status={connection.status} stats={connection.stats} onSettings={connection.applySettings} />}
         {view === "memory" && <MemoryPage client={connection.client} />}
+        {view === "map" && <MapPage client={connection.client} stats={connection.stats} />}
         {view === "logs" && <LogsPage events={connection.events} stats={connection.stats} />}
         {view === "config" && <ConfigPage client={connection.client} />}
         {view === "terminal" && <Suspense fallback={<div className="page-loading">Loading secure terminal…</div>}><TerminalPage client={connection.client} profile={connection.profile} stats={connection.stats} /></Suspense>}
         {view === "settings" && <SettingsPage status={connection.status} stats={connection.stats} profile={connection.profile} onConnection={() => setShowConnection(true)} onForget={() => void forget()} />}
       </div>
     </main>
-    <video ref={mock.videoRef} className="mock-capture-video" muted playsInline aria-hidden />
+    {debugEnabled
+      ? <DebugDock logs={connection.logs} status={connection.status} stats={connection.stats} />
+      : <EyeDock status={connection.status} />}
     <ConnectionDialog open={showConnection} profile={connection.profile} stats={connection.stats} bleSupported={connection.bleSupported} canClose onClose={() => setShowConnection(false)} onConnect={connect} />
   </div>;
 }

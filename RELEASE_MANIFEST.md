@@ -1,22 +1,31 @@
-# EKO Remote v0.4.1 release manifest
+# EKO Remote v1.0.0 release manifest
 
-Release date: 2026-07-20
+Release date: 2026-07-23
 
-Verified release gates:
+## Included
 
-- 12 Vitest semantic-client, BLE framing, and gamepad-mapping checks
-- 4 Python BLE bridge/API mapping checks
-- strict TypeScript project build
-- Vite production build for a GitHub Pages project path
-- no `.env`, API key, API token, `node_modules`, or generated `dist` in the release archive
+- Physical-only Raspberry Pi control UI
+- Persistent top-bar Debug Mode switch
+- Right-side structured live-log stream with sequence deduplication
+- Log level filter, pause/resume, clear, connection state, and active workflows
+- Two live 128x64 eye previews when Debug Mode is off
+- Physical camera, face identity, eye gaze, person detection, and map views
+- Explicit missing-motor-driver lock across Dashboard, Drive, Settings, and Vision follow controls
+- Automatic Gamepad API discovery with axes 0/1 and buttons 4/5
+- Wi-Fi HTTPS/WSS and BLE structured-log transport
+- Typed atomic configuration, Wi-Fi recovery profiles, and optional terminal
+- GitHub Pages test/build/deploy workflow
 
-The source includes a global Mock hardware switch, lazy one-frame browser camera capture,
-continuous optional browser microphone PCM, Pi-side speaker playback, an automatically detected
-Gamepad, the Pi-accepted Mecanum twin, cross-file staged configuration, structured Wi-Fi profiles, the
-authenticated PTY page, GitHub Pages Actions deployment, BLE fallback bridge, architecture and
-publishing references, and transport tests.
+## Release gates
 
-Browser microphone/camera/Gamepad behavior was type-checked and exercised through the simulated Pi
-protocol, but no physical browser device, gamepad, Raspberry Pi, or Tailscale tailnet was available
-inside the release environment. Those device-permission and end-to-end network checks remain part
-of deployment acceptance.
+- 18 Vitest behavior and transport tests
+- 5 Python BLE bridge and API mapping tests
+- Strict TypeScript project build
+- Vite production build
+- Responsive desktop, tablet, and mobile breakpoint/overflow source audit
+- Clean archive extraction and secret scan
+
+## Excluded
+
+The release archive excludes `.env`, credentials, `node_modules`, `dist`, coverage, browser storage,
+and generated caches. Physical Pi hardware and network acceptance must be completed after upload.
