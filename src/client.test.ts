@@ -89,4 +89,12 @@ describe("EkoClient temporary CHAT operations", () => {
     expect(link.request).toHaveBeenCalledWith("follow.start");
     expect(link.request).toHaveBeenCalledWith("map.get");
   });
+
+  it("updates the robot voice-reply gate used by the AI page", async () => {
+    const link = transport();
+    await new EkoClient(link.value).updateSettings({ voice_responses: true });
+    expect(link.request).toHaveBeenCalledWith("settings.update", {
+      voice_responses: true,
+    });
+  });
 });

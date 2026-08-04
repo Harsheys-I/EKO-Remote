@@ -1,4 +1,4 @@
-import { Bot, BrainCircuit, Camera, ChevronRight, Eraser, Globe2, History, Music2, RefreshCw, Send, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Bot, BrainCircuit, Camera, ChevronRight, Eraser, Globe2, History, Music2, RefreshCw, Send, SlidersHorizontal, Sparkles, Volume2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { EkoClient } from "../client";
@@ -92,6 +92,7 @@ export function AIPage({ client, status, events, stats, onSettings }: {
   const limit = history?.exact_limit ?? 5;
   const cameraQuota = status?.capability_status?.camera;
   const songQuota = status?.capability_status?.song;
+  const physicalVoice = status?.capability_status?.physical_voice;
 
   const updateGate = async (name: string, changes: Partial<RuntimeSettings>) => {
     if (!client || updatingGate) return;
@@ -123,10 +124,11 @@ export function AIPage({ client, status, events, stats, onSettings }: {
     <div className="ai-sidebar">
       <Panel>
         <SectionHeading kicker="ACTIVE BRAIN" title="Model status" action={<BrainCircuit size={19} />} />
-        <dl className="detail-list"><div><dt>Provider</dt><dd>{status?.ai.provider ?? "—"}</dd></div><div><dt>Model</dt><dd>{status?.ai.model ?? "—"}</dd></div><div><dt>CHAT context</dt><dd>{status ? `${exact}/${limit} exact` : "—"}</dd></div><div><dt>Last route</dt><dd>{String(latestRoute?.payload.category ?? "Waiting")}</dd></div></dl>
+        <dl className="detail-list"><div><dt>Provider</dt><dd>{status?.ai.provider ?? "—"}</dd></div><div><dt>Model</dt><dd>{status?.ai.model ?? "—"}</dd></div><div><dt>Wake listener</dt><dd className={physicalVoice?.phase === "wakeword" ? "ready" : ""}>{physicalVoice?.phase ?? "—"}</dd></div><div><dt>CHAT context</dt><dd>{status ? `${exact}/${limit} exact` : "—"}</dd></div><div><dt>Last route</dt><dd>{String(latestRoute?.payload.category ?? "Waiting")}</dd></div></dl>
       </Panel>
       <Panel className="capability-gates-panel">
         <SectionHeading kicker="LIVE CAPABILITY GATES" title="AI tools" action={<SlidersHorizontal size={19} />} />
+        <div className="capability-toggle-row"><Volume2 size={17} /><Toggle checked={Boolean(status?.settings.voice_responses)} label="EKO voice replies" description="Keep the answer in this chat and speak it through EKO" disabled={!client || updatingGate !== null || !status?.capability_status?.speaker?.tts_configured} onChange={(value) => void updateGate("voice replies", { voice_responses: value })} /></div>
         <div className="capability-toggle-row"><Globe2 size={17} /><Toggle checked={Boolean(status?.settings.web_search_enabled)} label="Web search" description="Permit Tavily retrieval" disabled={!client || updatingGate !== null} onChange={(value) => void updateGate("web search", { web_search_enabled: value })} /></div>
         <div className="capability-toggle-row"><Camera size={17} /><Toggle checked={Boolean(status?.settings.camera_on_demand)} label="Camera questions" description={quotaLabel(cameraQuota)} disabled={!client || !cameraQuota?.configured || updatingGate !== null} onChange={(value) => void updateGate("camera AI", { camera_on_demand: value })} /></div>
         <div className="capability-toggle-row"><Music2 size={17} /><Toggle checked={Boolean(status?.settings.song_enabled)} label="Song listening" description={quotaLabel(songQuota)} disabled={!client || !songQuota?.configured || updatingGate !== null} onChange={(value) => void updateGate("song recognition", { song_enabled: value })} /></div>

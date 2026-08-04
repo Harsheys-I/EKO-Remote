@@ -143,6 +143,8 @@ export interface EyesStatus {
   height: number;
   state: EyeState;
   last_error: string | null;
+  transport_errors?: number;
+  thread_alive?: boolean;
 }
 
 export interface FaceRecord {
@@ -210,6 +212,9 @@ export interface SpeakerStatus {
 export interface PhysicalVoiceStatus {
   running: boolean;
   error: string | null;
+  phase?: "stopped" | "starting" | "wakeword" | "recording" | "transcribing" | "disabled" | "retrying";
+  wakeword_enabled?: boolean;
+  autostart?: boolean;
   channels: number;
   stt_engine: string;
 }

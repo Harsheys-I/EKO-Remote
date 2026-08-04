@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Added an AI-page **EKO voice replies** switch backed by the robot's live `voice_responses` setting.
+- Kept every AI answer visible in the website while allowing ElevenLabs speech to be independently enabled or disabled.
+- Displayed the physical voice supervisor phase and wake-listener status.
+- Extended eye health types for reconnecting OLED transport telemetry.
+- Preserved the physical-only Debug Mode interface and motor-driver lock.
+
 ## 1.0.0
 
 - Removed browser Mock Mode, its media bridge, mock sensor injection, and all mock UI controls.

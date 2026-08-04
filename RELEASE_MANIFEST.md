@@ -1,4 +1,4 @@
-# EKO Remote v1.0.0 release manifest
+# EKO Remote v1.1.0 release manifest
 
 Release date: 2026-07-23
 
@@ -9,6 +9,8 @@ Release date: 2026-07-23
 - Right-side structured live-log stream with sequence deduplication
 - Log level filter, pause/resume, clear, connection state, and active workflows
 - Two live 128x64 eye previews when Debug Mode is off
+- AI-page **EKO voice replies** switch with answer-always-visible semantics
+- Physical voice phase and wake-listener autostart telemetry
 - Physical camera, face identity, eye gaze, person detection, and map views
 - Explicit missing-motor-driver lock across Dashboard, Drive, Settings, and Vision follow controls
 - Automatic Gamepad API discovery with axes 0/1 and buttons 4/5
@@ -18,7 +20,7 @@ Release date: 2026-07-23
 
 ## Release gates
 
-- 18 Vitest behavior and transport tests
+- 19 Vitest behavior and transport tests
 - 5 Python BLE bridge and API mapping tests
 - Strict TypeScript project build
 - Vite production build
