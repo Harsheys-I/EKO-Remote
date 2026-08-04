@@ -1,5 +1,5 @@
 import { Eye, ScanFace } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { eyeLayout } from "../eyeDisplay";
 import type { EyeState, StatusPayload } from "../types";
 
@@ -8,10 +8,9 @@ const offlineEye: EyeState = {
   source: "offline", updated_at: 0, revision: 0,
 };
 
-function EyeScreen({ side, state, localBlink }: { side: "left" | "right"; state: EyeState; localBlink: boolean }) {
-  const active = { ...state, blink: state.blink || localBlink };
-  const layout = eyeLayout(active);
-  const expression = active.expression;
+function EyeScreen({ side, state }: { side: "left" | "right"; state: EyeState }) {
+  const layout = eyeLayout(state);
+  const expression = state.expression;
   const brow = expression === "determined" || expression === "angry"
     ? side === "left" ? "M 5 5 L 122 21" : "M 5 21 L 122 5"
     : expression === "thinking"
@@ -34,27 +33,14 @@ function EyeScreen({ side, state, localBlink }: { side: "left" | "right"; state:
 }
 
 export function EyeDock({ status }: { status: StatusPayload | null }) {
-  const [localBlink, setLocalBlink] = useState(false);
   const state = status?.capability_status?.eyes?.state ?? offlineEye;
-  useEffect(() => {
-    if (!status) return undefined;
-    let closeTimer: number | undefined;
-    const interval = window.setInterval(() => {
-      setLocalBlink(true);
-      closeTimer = window.setTimeout(() => setLocalBlink(false), 135);
-    }, 4200);
-    return () => {
-      window.clearInterval(interval);
-      if (closeTimer !== undefined) window.clearTimeout(closeTimer);
-    };
-  }, [status]);
   const eyeStatus = status?.capability_status?.eyes;
   const activeFace = status?.capability_status?.faces?.active;
   const direction = status?.capability_status?.sound_direction?.last_estimate;
   const source = useMemo(() => state.source.replaceAll("_", " "), [state.source]);
   return <aside className="eye-dock">
     <header><div><span className="eyebrow">EKO FACE BUS</span><strong>Live eyes</strong></div><Eye size={18} /></header>
-    <div className="eye-pair"><EyeScreen side="left" state={state} localBlink={localBlink} /><EyeScreen side="right" state={state} localBlink={localBlink} /></div>
+    <div className="eye-pair"><EyeScreen side="left" state={state} /><EyeScreen side="right" state={state} /></div>
     <dl className="eye-telemetry">
       <div><dt>Expression</dt><dd>{state.expression}</dd></div>
       <div><dt>Source</dt><dd>{source}</dd></div>
@@ -62,6 +48,6 @@ export function EyeDock({ status }: { status: StatusPayload | null }) {
       <div><dt>Seen face</dt><dd>{activeFace ? <span><ScanFace size={12} />{activeFace.name}</span> : "None"}</dd></div>
       <div><dt>Sound angle</dt><dd>{direction ? `${direction.angle_degrees.toFixed(0)}° ${direction.side}` : "—"}</dd></div>
     </dl>
-    <p>Both previews consume the same expression and gaze state sent to the two physical 128×64 displays.</p>
+    <p>Both previews consume only the last frame committed to both physical 128×64 displays.</p>
   </aside>;
 }

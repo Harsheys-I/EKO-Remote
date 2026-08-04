@@ -1,6 +1,6 @@
-# EKO Remote v1.1.0 release manifest
+# EKO Remote v1.2.0 release manifest
 
-Release date: 2026-07-23
+Release date: 2026-08-04
 
 ## Included
 
@@ -8,7 +8,7 @@ Release date: 2026-07-23
 - Persistent top-bar Debug Mode switch
 - Right-side structured live-log stream with sequence deduplication
 - Log level filter, pause/resume, clear, connection state, and active workflows
-- Two live 128x64 eye previews when Debug Mode is off
+- Two robot-authoritative 128x64 eye previews sourced from committed physical frames
 - AI-page **EKO voice replies** switch with answer-always-visible semantics
 - Physical voice phase and wake-listener autostart telemetry
 - Physical camera, face identity, eye gaze, person detection, and map views

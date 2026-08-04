@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+- Removed the independent browser blink clock from Live Eyes.
+- Rendered only the robot's last successfully committed dual-OLED state, so Remote cannot run ahead of the physical face.
+- Consumed Wi-Fi eye telemetry at the OLED frame cadence instead of the previous 750 ms backend interval.
+- Preserved Debug Mode, the visible-plus-spoken AI answer switch, physical controls, and the motor-driver lock.
+
 ## 1.1.0
 
 - Added an AI-page **EKO voice replies** switch backed by the robot's live `voice_responses` setting.

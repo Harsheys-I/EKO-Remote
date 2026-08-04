@@ -142,6 +142,8 @@ export interface EyesStatus {
   width: number;
   height: number;
   state: EyeState;
+  displayed_at?: number | null;
+  desired_revision?: number;
   last_error: string | null;
   transport_errors?: number;
   thread_alive?: boolean;
