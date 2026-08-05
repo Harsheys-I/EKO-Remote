@@ -90,6 +90,13 @@ describe("EkoClient temporary CHAT operations", () => {
     expect(link.request).toHaveBeenCalledWith("map.get");
   });
 
+  it("saves the complete floor plan through one atomic operation", async () => {
+    const link = transport();
+    const layout = { version: 1 as const, name: "Home", width_m: 8, height_m: 6, rooms: [], walls: [], doors: [], objects: [], updated_at: null };
+    await new EkoClient(link.value).saveFloorPlan(layout);
+    expect(link.request).toHaveBeenCalledWith("map.layout.update", { layout });
+  });
+
   it("updates the robot voice-reply gate used by the AI page", async () => {
     const link = transport();
     await new EkoClient(link.value).updateSettings({ voice_responses: true });

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- Rebuilt every eye expression around a simple round eyeball with distinct operational adornments matching the physical renderer.
+- Added a persistent custom-dimension floor-plan editor with named/typed rooms, bathrooms, walls, doors, furniture, fixtures, precise measurements, selection, deletion, save, and discard.
+- Overlaid live optical-mouse/MPU pose and trail on the fixed layout coordinate system.
+- Added typed `/map/layout` Wi-Fi and BLE operations while keeping trail reset independent from layout data.
+- Added the `acknowledging` physical-voice phase and preserved committed-frame eye synchronization, Debug Mode, visible/spoken answer control, automatic Gamepad discovery, and motor lock.
+
 ## 1.2.0
 
 - Removed the independent browser blink clock from Live Eyes.

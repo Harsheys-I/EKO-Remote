@@ -102,6 +102,11 @@ class APIClientTests(unittest.TestCase):
         )
         self.assertEqual(EkoAPI._route("follow.start", {}), ("POST", "/vision/follow/start", {}))
         self.assertEqual(EkoAPI._route("map.get", {}), ("GET", "/map", None))
+        layout = {"version": 1, "name": "Home"}
+        self.assertEqual(
+            EkoAPI._route("map.layout.update", {"layout": layout}),
+            ("POST", "/map/layout", {"layout": layout}),
+        )
 
 
 if __name__ == "__main__":

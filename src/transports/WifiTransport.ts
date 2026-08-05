@@ -81,6 +81,7 @@ export class WifiTransport extends TransportBase implements EkoTransport {
       case "follow.stop": return { path: "/vision/follow/stop", method: "POST", body: {} };
       case "map.get": return { path: "/map" };
       case "map.reset": return { path: "/map/reset", method: "POST", body: {} };
+      case "map.layout.update": return { path: "/map/layout", method: "POST", body: { layout: payload.layout } };
       case "config.list": return { path: "/config" };
       case "config.update": return { path: `/config/${encodeURIComponent(String(payload.name))}`, method: "POST", body: { values: payload.values } };
       case "config.batch": return { path: "/config/batch", method: "POST", body: { changes: payload.changes, dry_run: payload.dry_run } };

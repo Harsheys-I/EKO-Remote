@@ -1,4 +1,4 @@
-# EKO Remote v1.2.0 architecture
+# EKO Remote v1.3.0 architecture
 
 EKO Remote is an operator interface. The Raspberry Pi remains authoritative for AI, memory,
 hardware state, camera capture, motion safety, configuration, and logs.
@@ -82,7 +82,7 @@ Clear removes the local view only; it does not erase the Pi log file.
 
 ## Physical UI contract
 
-There is no Mock Mode in v1.2.0:
+There is no Mock Mode in v1.3.0:
 
 - Vision requests `/vision/snapshot` from the Pi camera.
 - Voice state comes from the Pi microphone loop.

@@ -214,7 +214,7 @@ export interface SpeakerStatus {
 export interface PhysicalVoiceStatus {
   running: boolean;
   error: string | null;
-  phase?: "stopped" | "starting" | "wakeword" | "recording" | "transcribing" | "disabled" | "retrying";
+  phase?: "stopped" | "starting" | "wakeword" | "acknowledging" | "recording" | "transcribing" | "disabled" | "retrying";
   wakeword_enabled?: boolean;
   autostart?: boolean;
   channels: number;
@@ -274,6 +274,23 @@ export interface OdometryStatus {
 
 export interface MapPose { x_m: number; y_m: number; yaw_deg: number; }
 export interface MapPoint extends MapPose { timestamp: number; }
+export type FloorRoomType = "room" | "bedroom" | "living_room" | "kitchen" | "bathroom" | "dining_room" | "hallway" | "balcony" | "utility" | "office" | "garage" | "other";
+export type FloorObjectType = "sofa" | "bed" | "table" | "chair" | "wardrobe" | "cabinet" | "toilet" | "sink" | "bathtub" | "shower" | "appliance" | "desk" | "shelf" | "plant" | "custom";
+export interface FloorRoom { id: string; name: string; type: FloorRoomType; x_m: number; y_m: number; width_m: number; height_m: number; }
+export interface FloorWall { id: string; x1_m: number; y1_m: number; x2_m: number; y2_m: number; thickness_m: number; }
+export interface FloorDoor { id: string; label: string; x_m: number; y_m: number; width_m: number; rotation_deg: number; }
+export interface FloorObject { id: string; type: FloorObjectType; label: string; x_m: number; y_m: number; width_m: number; height_m: number; rotation_deg: number; }
+export interface FloorPlan {
+  version: 1;
+  name: string;
+  width_m: number;
+  height_m: number;
+  rooms: FloorRoom[];
+  walls: FloorWall[];
+  doors: FloorDoor[];
+  objects: FloorObject[];
+  updated_at: number | null;
+}
 export interface MapPayload {
   ok: boolean;
   status: OdometryStatus;
@@ -282,6 +299,8 @@ export interface MapPayload {
   bounds: { min_x_m: number; max_x_m: number; min_y_m: number; max_y_m: number };
   units: "meters";
   quality: "dead_reckoning";
+  layout: FloorPlan | null;
+  layout_status: { persist_file: string; last_error: string | null; rooms: number; walls: number; doors: number; objects: number } | null;
 }
 
 export interface ServiceResult<T = unknown> {
@@ -408,7 +427,7 @@ export type EkoOperation =
   | "eyes.get" | "eyes.expression"
   | "faces.list" | "faces.enroll" | "faces.delete"
   | "follow.get" | "follow.start" | "follow.stop"
-  | "map.get" | "map.reset"
+  | "map.get" | "map.reset" | "map.layout.update"
   | "config.list" | "config.update" | "config.batch"
   | "wifi.profiles" | "wifi.profiles.update"
   | "debug.logs" | "terminal.status";

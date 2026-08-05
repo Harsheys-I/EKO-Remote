@@ -1,4 +1,4 @@
-import type { ConfigBatchPayload, ConfigListPayload, ConfigSavePayload, ControlStatus, DebugLogsPayload, DriveVector, EkoEvent, EyesStatus, FacesPayload, FollowStatus, MapPayload, MemoryRecord, RuntimeSettings, ServiceResult, StatusPayload, TemporaryChatStatus, TerminalStatus, VisionSnapshot, WifiProfilesPayload, WifiRecoveryProfileDraft } from "./types";
+import type { ConfigBatchPayload, ConfigListPayload, ConfigSavePayload, ControlStatus, DebugLogsPayload, DriveVector, EkoEvent, EyesStatus, FacesPayload, FloorPlan, FollowStatus, MapPayload, MemoryRecord, RuntimeSettings, ServiceResult, StatusPayload, TemporaryChatStatus, TerminalStatus, VisionSnapshot, WifiProfilesPayload, WifiRecoveryProfileDraft } from "./types";
 
 export class EkoClient {
   constructor(readonly transport: import("./transports/Transport").EkoTransport) {}
@@ -27,6 +27,7 @@ export class EkoClient {
   stopFollowing() { return this.transport.request<ServiceResult>("follow.stop"); }
   map() { return this.transport.request<MapPayload>("map.get"); }
   resetMap() { return this.transport.request<MapPayload>("map.reset"); }
+  saveFloorPlan(layout: FloorPlan) { return this.transport.request<{ ok: boolean; layout: FloorPlan; map: MapPayload }>("map.layout.update", { layout }); }
   configFiles() { return this.transport.request<ConfigListPayload>("config.list"); }
   updateConfig(name: string, values: Record<string, unknown>) { return this.transport.request<ConfigSavePayload>("config.update", { name, values }); }
   validateConfigBatch(changes: Record<string, Record<string, unknown>>) { return this.transport.request<ConfigBatchPayload>("config.batch", { changes, dry_run: true }); }

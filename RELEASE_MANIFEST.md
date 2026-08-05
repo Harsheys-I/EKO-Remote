@@ -1,33 +1,29 @@
-# EKO Remote v1.2.0 release manifest
+# EKO Remote v1.3.0 release manifest
 
-Release date: 2026-08-04
+Release date: 2026-08-05
 
 ## Included
 
-- Physical-only Raspberry Pi control UI
-- Persistent top-bar Debug Mode switch
-- Right-side structured live-log stream with sequence deduplication
-- Log level filter, pause/resume, clear, connection state, and active workflows
-- Two robot-authoritative 128x64 eye previews sourced from committed physical frames
-- AI-page **EKO voice replies** switch with answer-always-visible semantics
-- Physical voice phase and wake-listener autostart telemetry
-- Physical camera, face identity, eye gaze, person detection, and map views
-- Explicit missing-motor-driver lock across Dashboard, Drive, Settings, and Vision follow controls
-- Automatic Gamepad API discovery with axes 0/1 and buttons 4/5
-- Wi-Fi HTTPS/WSS and BLE structured-log transport
-- Typed atomic configuration, Wi-Fi recovery profiles, and optional terminal
-- GitHub Pages test/build/deploy workflow
+- Robot-authoritative synchronized round-eyeball previews
+- Distinct listening/thinking/speaking/movement/camera/happy/surprised/error/angry/sleep symbols
+- Persistent floor-plan editor with arbitrary dimensions
+- Named and typed rooms, including bathroom and other room types
+- Walls with endpoints/thickness and doors with position/width/rotation
+- Sofa, bed, table, chair, storage, bathroom fixture, appliance, plant, and custom objects
+- Exact metric inspector, canvas selection, deletion, atomic save, and discard
+- Live odometry trail/pose overlay and layout-preserving reset
+- HTTPS/WSS and BLE `map.layout.update`
+- Existing Debug Mode, AI voice-reply control, physical vision, memory, config, terminal, and Gamepad UI
 
 ## Release gates
 
-- 19 Vitest behavior and transport tests
-- 5 Python BLE bridge and API mapping tests
+- 22 Vitest behavior/transport checks
 - Strict TypeScript project build
 - Vite production build
-- Responsive desktop, tablet, and mobile breakpoint/overflow source audit
-- Clean archive extraction and secret scan
+- 5 Python BLE bridge route/protocol checks
+- Responsive desktop/tablet/mobile source audit
+- Clean archive and secret scan
 
 ## Excluded
 
-The release archive excludes `.env`, credentials, `node_modules`, `dist`, coverage, browser storage,
-and generated caches. Physical Pi hardware and network acceptance must be completed after upload.
+`.env`, credentials, `node_modules`, `dist`, coverage, browser storage, and generated caches.

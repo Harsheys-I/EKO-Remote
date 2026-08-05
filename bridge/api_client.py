@@ -83,6 +83,8 @@ class EkoAPI:
             return "GET", "/map", None
         if operation == "map.reset":
             return "POST", "/map/reset", {}
+        if operation == "map.layout.update":
+            return "POST", "/map/layout", {"layout": payload.get("layout")}
         if operation == "config.list":
             return "GET", "/config", None
         if operation == "config.update":

@@ -9,7 +9,13 @@ const state = (changes: Partial<EyeState> = {}): EyeState => ({
 
 describe("128x64 eye preview geometry", () => {
   it("clamps gaze to the same safe display range as the Pi renderer", () => {
-    expect(eyeLayout(state({ gaze_x: 4, gaze_y: -3 }))).toMatchObject({ pupilX: 88, pupilY: 21 });
+    expect(eyeLayout(state({ gaze_x: 4, gaze_y: -3 }))).toMatchObject({ pupilX: 78, pupilY: 19 });
+  });
+
+  it("gives operational expressions visibly different adornments", () => {
+    const expressions = ["listening", "thinking", "speaking", "determined", "camera", "happy", "surprised", "error"];
+    const adornments = expressions.map((expression) => eyeLayout(state({ expression })).adornment);
+    expect(new Set(adornments).size).toBe(expressions.length);
   });
 
   it("renders sleeping and explicit blink states closed", () => {

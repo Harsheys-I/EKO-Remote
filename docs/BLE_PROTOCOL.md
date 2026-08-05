@@ -61,7 +61,7 @@ or:
 
 ## Operations
 
-`health`, `events`, `debug.logs`, `memories`, `memory.remember`, `memory.forget`, `chat.history`, `chat.forget`, `message`, `command`, `drive`, `control`, `settings.get`, `settings.update`, `ai`, `vision.snapshot`, `eyes.get`, `eyes.expression`, `faces.list`, `faces.enroll`, `faces.delete`, `follow.get`, `follow.start`, `follow.stop`, `map.get`, `map.reset`, `config.list`, `config.update`, `config.batch`, `wifi.profiles`, `wifi.profiles.update`, and `terminal.status` map directly to EKO's v1.2.0 control API.
+`health`, `events`, `debug.logs`, `memories`, `memory.remember`, `memory.forget`, `chat.history`, `chat.forget`, `message`, `command`, `drive`, `control`, `settings.get`, `settings.update`, `ai`, `vision.snapshot`, `eyes.get`, `eyes.expression`, `faces.list`, `faces.enroll`, `faces.delete`, `follow.get`, `follow.start`, `follow.stop`, `map.get`, `map.reset`, `map.layout.update`, `config.list`, `config.update`, `config.batch`, `wifi.profiles`, `wifi.profiles.update`, and `terminal.status` map directly to EKO's v1.3.0 control API.
 
 The browser media stream and PTY byte stream are deliberately WSS-only. BLE can read their policy
 or status and can inject a bounded debug sensor payload, but it does not transport PCM, JPEGs,
