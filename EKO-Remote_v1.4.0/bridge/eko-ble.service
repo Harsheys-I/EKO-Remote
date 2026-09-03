@@ -1,0 +1,17 @@
+[Unit]
+Description=EKO Bluetooth LE bridge
+After=bluetooth.target eko.service
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+User=eko
+WorkingDirectory=/opt/eko-remote/bridge
+EnvironmentFile=-/opt/eko/.env
+Environment=EKO_API_URL=http://127.0.0.1:8765
+ExecStart=/opt/eko-remote/bridge/.venv/bin/python eko_ble_bridge.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
